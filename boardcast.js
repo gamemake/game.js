@@ -93,7 +93,7 @@ BoardcaseDomain.leave = function (user_id)
 	}
 }
 
-function BoardcastManage(msgq_leveL_count, msgq_size)
+function BoardcastManager(msgq_leveL_count, msgq_size)
 {
 	this.user_id_map = {};
 	this.user_name_map = {};
@@ -104,7 +104,7 @@ function BoardcastManage(msgq_leveL_count, msgq_size)
 	this.msgq_size = msgq_size;
 }
 
-BoardcastManage.loginUser = function (user_id, user_name)
+BoardcastManager.loginUser = function (user_id, user_name)
 {
 	if(this.user_name_map[user_name]!=undefined) {
 		return undefined;
@@ -125,7 +125,7 @@ BoardcastManage.loginUser = function (user_id, user_name)
 	this.user_array[index] = userobj;
 }
 
-BoardcastManager.logoutUser = function (user_id)
+BoardcastManagerr.logoutUser = function (user_id)
 {
 	var index = this.user_id_map[user_id];
 	if(index==undefined) {
@@ -140,7 +140,7 @@ BoardcastManager.logoutUser = function (user_id)
 	this.user_free.push(index);
 }
 
-BoardcastManager.sendToUserId = function (user_id, message)
+BoardcastManagerr.sendToUserId = function (user_id, message)
 {
 	var index = this.user_id_map[user_id];
 	if(index==undefined) {
@@ -149,7 +149,7 @@ BoardcastManager.sendToUserId = function (user_id, message)
 	this.user_array[index].pushMessage(message);
 }
 
-BoardcastManager.sendToUserName = function (user_name, message)
+BoardcastManagerr.sendToUserName = function (user_name, message)
 {
 	var index = this.user_name_map[user_name];
 	if(index==undefined) {
@@ -160,7 +160,7 @@ BoardcastManager.sendToUserName = function (user_name, message)
 	this.user_array[index].pushMessage(message);
 }
 
-BoardcastManager.sendToDomain = function (domain_id, message)
+BoardcastManagerr.sendToDomain = function (domain_id, message)
 {
 	var domain = this.getDomain(domain_id);
 	if(domain!=undefined) {
@@ -168,7 +168,7 @@ BoardcastManager.sendToDomain = function (domain_id, message)
 	}
 }
 
-BoardcastManager.getSubscriber = function (uid)
+BoardcastManagerr.getSubscriber = function (uid)
 {
 	var index = this.user_id_map[user_id];
 	if(index==undefined) {
@@ -177,13 +177,13 @@ BoardcastManager.getSubscriber = function (uid)
 	return this.user_array[index];
 }
 
-BoardcastManager.getDomain = function (domain_id)
+BoardcastManagerr.getDomain = function (domain_id)
 {
 	return this.domains[domain_id];
 }
 
 module.export.createManager = function (msgq_leveL_count, msgq_size) {
-	return new BoardcastManage(msgq_leveL_count, msgq_size);
+	return new BoardcastManager(msgq_leveL_count, msgq_size);
 }
 
 module.export.createMessage = function (level, body) {
