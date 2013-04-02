@@ -1,19 +1,25 @@
+var message_seq = 0;
+const message_max = 800000000;
 
 function BoardcastMessage(level, body)
 {
 	this.level = level;
 	this.body = body;
-	this.create_time = 0;
+	this.seq = message_seq++;
+	if(message_seq==message_max) {
+		message_seq = 0;
+	}
 }
 
 function BoardcastMessageQueue(size)
 {
 	this.msg_array = [];
+	this.msg_array.length = size;
 	this.msg_start = 0;
 	this.msg_count = 0;
 }
 
-BoardcastMessageQueue.push = function (message)
+BoardcastMessageQueue.prototype.pushMessage = function (message)
 {
 	var index = (this.msg_start + this.msg_count) % this.msg_array.length;
 	this.msg_array[index] = message;
@@ -22,7 +28,7 @@ BoardcastMessageQueue.push = function (message)
 	}
 }
 
-BoardcastMessageQueue.getMessages = function (timestamp, ret)
+BoardcastMessageQueue.prototype.getMessage = function (ret)
 {
 	for(i=0; i<this.msg_count; i++) {
 		var index = (this.msg_start+i) % this.msg_array.length;
@@ -41,36 +47,49 @@ function BoardcastSubscriber(manager, index, user_id, user_name)
 	this.user_name = user_name;
 	this.domains = {};
 	this.msgq_array = [];
-	for(i=0; i<manager.msgq_level_count; i++) {
-		this.msgq_array.push(new BoardcastMessageQueue(manager.msgq_size));
+	this.msgq_array.length = manager.msgq_level_count;
+	for(i=0; i<this.msgq_array.length; i++) {
+		this.msgq_array[i] = new BoardcastMessageQueue(manager.msgq_size);
 	}
 }
 
-BoardcastSubscriber.leaveAllDomains = function ()
+BoardcastSubscriber.prototype.joinDomain = function (domain)
 {
-	this.domains.forEach(function(entry) {
-		domain = manager.getDomain(entry);
-		if(domain!=undefined) {
-			domain.leave(this.user_id);
-		}
-	});
-	this.domains = [];
+	domains[domain.domain_id] = domain;
 }
 
-BoardcastSubscriber.pushMessage = function (message)
+BoardcastSubscriber.prototype.leaveDomain = function (domain_id)
+{
+	var domain = domains[domain_id];
+	if(domain!=undefined) {
+		domains[domain_id] = undefined;
+		domain.leave(this.user_id);
+	}
+}
+
+BoardcastSubscriber.prototype.leaveAllDomains = function ()
+{
+	for(var i in this.domains) {
+		domain.leave(this.user_id);
+	}
+	this.domains = {};
+}
+
+BoardcastSubscriber.prototype.pushMessage = function (message)
 {
 	if(message.level<0 && message.level>=this.msgq_array.length) {
 		return;
 	}
-	this.msgq_array[message.level].push(message);
+	this.msgq_array[message.level].pushMessage(message);
 }
 
-BoardcastSubscriber.getMessages = function (timestamp)
+BoardcastSubscriber.getMessage = function ()
 {
 	var ret = [];
 	for(i=0; i<this.msgq_array.length; i++) {
-		this.msgq_array[i].getMessages(timestamp, ret);
+		this.msgq_array[i].get(ret);
 	}
+	return ret;
 }
 
 function BoardcastDomain(manager, domain_id)
@@ -80,12 +99,12 @@ function BoardcastDomain(manager, domain_id)
 	this.users = {};
 }
 
-BoardcaseDomain.join = function (user_id, index)
+BoardcastDomain.join = function (user_id, index)
 {
 	this.users[user_id] = index;
 }
 
-BoardcaseDomain.leave = function (user_id)
+BoardcastDomain.leave = function (user_id)
 {
 	this.users[user_id] = undefined;
 	if(this.users.length==0) {
@@ -93,18 +112,32 @@ BoardcaseDomain.leave = function (user_id)
 	}
 }
 
-function BoardcastManager(msgq_leveL_count, msgq_size)
+BoardcastDomain.pushMessage = function(message)
+{
+	for(var key in this.users) {
+		manager.user_array[this.users[key]].pushMessage(message);
+	}
+}
+
+function BoardcastManager(config)
 {
 	this.user_id_map = {};
 	this.user_name_map = {};
 	this.user_array = [];
 	this.user_free = [];
 	this.domains = {};
-	this.msgq_level_count = msgq_level_count;
-	this.msgq_size = msgq_size;
+	this.msgq_level_count = 1;
+	this.msgq_size = 100;
+
+	for(var i in config) {
+		var type = typeof(config[i]);
+		if(type==typeof(this[i]) && type=='number') {
+			this[i] = config[i];
+		}
+	}
 }
 
-BoardcastManager.loginUser = function (user_id, user_name)
+BoardcastManager.prototype.login = function (user_id, user_name)
 {
 	if(this.user_name_map[user_name]!=undefined) {
 		return undefined;
@@ -119,13 +152,13 @@ BoardcastManager.loginUser = function (user_id, user_name)
 		this.user_array.push(null);
 	}
 
-	var userobj = new BoardcastSubscriber(index, user_id, user_name);
+	var userobj = new BoardcastSubscriber(this, index, user_id, user_name);
 	this.user_name_map[user_name] = index;
 	this.user_id_map[user_id] = index;
 	this.user_array[index] = userobj;
 }
 
-BoardcastManagerr.logoutUser = function (user_id)
+BoardcastManager.prototype.logout = function (user_id)
 {
 	var index = this.user_id_map[user_id];
 	if(index==undefined) {
@@ -140,7 +173,34 @@ BoardcastManagerr.logoutUser = function (user_id)
 	this.user_free.push(index);
 }
 
-BoardcastManagerr.sendToUserId = function (user_id, message)
+BoardcastManager.prototype.joinDomain = function(user_id, domain_id)
+{
+	var index = this.user_id_map[user_id];
+	if(index==undefined) {
+		return;
+	}
+
+	var userobj = this.user_array[index];
+	var domain = this.domains[domain_id];
+	if(domain==undefined) {
+		domain = new BoardcastDomain(domain_id);
+		this.domains[domain_id] = domain;
+	}
+	userobj.joinDomain(domain);
+}
+
+BoardcastManager.prototype.leaveDomain = function(user_id, domain_id)
+{
+	var index = this.user_id_map[user_id];
+	if(index==undefined) {
+		return;
+	}
+
+	var userobj = this.user_array[index];
+	userobj.leaveDomain(domain_id);
+}
+
+BoardcastManager.prototype.sendToUserId = function (user_id, message)
 {
 	var index = this.user_id_map[user_id];
 	if(index==undefined) {
@@ -149,7 +209,7 @@ BoardcastManagerr.sendToUserId = function (user_id, message)
 	this.user_array[index].pushMessage(message);
 }
 
-BoardcastManagerr.sendToUserName = function (user_name, message)
+BoardcastManager.prototype.sendToUserName = function (user_name, message)
 {
 	var index = this.user_name_map[user_name];
 	if(index==undefined) {
@@ -160,7 +220,7 @@ BoardcastManagerr.sendToUserName = function (user_name, message)
 	this.user_array[index].pushMessage(message);
 }
 
-BoardcastManagerr.sendToDomain = function (domain_id, message)
+BoardcastManager.prototype.sendToDomain = function (domain_id, message)
 {
 	var domain = this.getDomain(domain_id);
 	if(domain!=undefined) {
@@ -168,7 +228,18 @@ BoardcastManagerr.sendToDomain = function (domain_id, message)
 	}
 }
 
-BoardcastManagerr.getSubscriber = function (uid)
+BoardcastManager.prototype.getMessage = function (user_id)
+{
+	var index = this.user_id_map[user_id];
+	if(index==undefined) {
+		return undefined;
+	}
+
+	var userobj = this.user_array[index];
+	return userobj.getMessage();
+}
+
+BoardcastManager.prototype.getSubscriber = function (user_id)
 {
 	var index = this.user_id_map[user_id];
 	if(index==undefined) {
@@ -177,15 +248,15 @@ BoardcastManagerr.getSubscriber = function (uid)
 	return this.user_array[index];
 }
 
-BoardcastManagerr.getDomain = function (domain_id)
+BoardcastManager.prototype.getDomain = function (domain_id)
 {
 	return this.domains[domain_id];
 }
 
-module.export.createManager = function (msgq_leveL_count, msgq_size) {
-	return new BoardcastManager(msgq_leveL_count, msgq_size);
+module.exports.createManager = function (msgq_level_count, msgq_size) {
+	return new BoardcastManager(msgq_level_count, msgq_size);
 }
 
-module.export.createMessage = function (level, body) {
+module.exports.createMessage = function (level, body) {
 	return new BoardcastMessage(level, body);
 }
