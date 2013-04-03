@@ -1,3 +1,4 @@
+
 var mysql = require('mysql');
 var config = require('./config.js');
 var pool   = mysql.createPool(config.get('userdata.mysql'));
