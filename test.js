@@ -1,3 +1,25 @@
+var boardcast = require('./boardcast.js');
+
+
+/*
+var config = require('./config.js');
+config.load('./config.json');
+
+var userauth = require('./userauth.js');
+var utils = require('./utils.js');
+
+console.log(utils.genSessionKey('aa'));
+
+userauth.authToken('bbb', function (user_id) {
+	if(user_id==undefined) {
+		console.log('failed');
+	} else {
+		console.log(user_id);
+	}
+	process.exit();
+});
+*/
+/*
 var cluster = require('cluster');
 
 if (cluster.isMaster) {
@@ -46,7 +68,7 @@ if (cluster.isMaster) {
 		}
 	});
 }
-
+*/
 /*
 
 var aa = [100, 200];

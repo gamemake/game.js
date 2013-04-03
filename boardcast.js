@@ -1,3 +1,4 @@
+
 var message_seq = 0;
 const message_max = 800000000;
 
@@ -30,27 +31,74 @@ BoardcastMessageQueue.prototype.pushMessage = function (message)
 
 BoardcastMessageQueue.prototype.getMessage = function (ret)
 {
-	for(i=0; i<this.msg_count; i++) {
-		var index = (this.msg_start+i) % this.msg_array.length;
-		ret.push(this.msg_array[index]);
-		this.msg_array[index] = null;
+	if(this.msg_count>0) {
+		for(i=0; i<this.msg_count; i++) {
+			var index = (this.msg_start+i) % this.msg_array.length;
+			ret.push(this.msg_array[index]);
+			this.msg_array[index] = null;
+		}
 	}
 	this.msg_start = 0;
 	this.msg_count = 0;
 }
 
-function BoardcastSubscriber(manager, index, user_id, user_name)
+function BoardcastSubscriber(manager, index, uid)
 {
 	this.manager = manager;
 	this.index = index;
-	this.user_id = user_id;
-	this.user_name = user_name;
+	this.uid = uid;
+	this.aid = -1;
+	this.name = '';
 	this.domains = {};
 	this.msgq_array = [];
 	this.msgq_array.length = manager.msgq_level_count;
 	for(i=0; i<this.msgq_array.length; i++) {
 		this.msgq_array[i] = new BoardcastMessageQueue(manager.msgq_size);
 	}
+}
+
+BoardcastSubscriber.prototype.bindAvatarId = function(aid)
+{
+	if(this.aid==-1) {
+		if(manager.aid_map[aid]==undefined) {
+			manager.aid_map[aid] = this.uid;
+			this.aid = aid;
+			return true;
+		}
+	}
+	return false;
+}
+
+BoardcastSubscriber.prototype.unbindAvatarId = function()
+{
+	if(this.aid!=-1) {
+		manager.aid_map[this.aid] = undefined;
+		this.aid = -1;
+		return true;
+	}
+	return false;
+}
+
+BoardcastSubscriber.prototype.bindName = function(name)
+{
+	if(this.name=='') {
+		if(manager.name_map[name]==undefined) {
+			manager.name_map[name] = this.uid;
+			this.name = name;
+			return true;
+		}
+	}
+	return false;
+}
+
+BoardcastSubscriber.prototype.unbindName = function()
+{
+	if(this.name!='') {
+		manager.name_map[this.name] = undefined;
+		this.name = '';
+		return true;
+	}
+	return false;
 }
 
 BoardcastSubscriber.prototype.joinDomain = function (domain)
@@ -63,14 +111,14 @@ BoardcastSubscriber.prototype.leaveDomain = function (domain_id)
 	var domain = domains[domain_id];
 	if(domain!=undefined) {
 		domains[domain_id] = undefined;
-		domain.leave(this.user_id);
+		domain.leave(this.uid);
 	}
 }
 
 BoardcastSubscriber.prototype.leaveAllDomains = function ()
 {
 	for(var i in this.domains) {
-		domain.leave(this.user_id);
+		domain.leave(this.uid);
 	}
 	this.domains = {};
 }
@@ -99,14 +147,14 @@ function BoardcastDomain(manager, domain_id)
 	this.users = {};
 }
 
-BoardcastDomain.join = function (user_id, index)
+BoardcastDomain.join = function (uid, index)
 {
-	this.users[user_id] = index;
+	this.users[uid] = index;
 }
 
-BoardcastDomain.leave = function (user_id)
+BoardcastDomain.leave = function (uid)
 {
-	this.users[user_id] = undefined;
+	this.users[uid] = undefined;
 	if(this.users.length==0) {
 		manager.domains[this.domain_id] = undefined;
 	}
@@ -121,8 +169,9 @@ BoardcastDomain.pushMessage = function(message)
 
 function BoardcastManager(config)
 {
-	this.user_id_map = {};
-	this.user_name_map = {};
+	this.uid_map = {};
+	this.aid_map = {}
+	this.name_map = {};
 	this.user_array = [];
 	this.user_free = [];
 	this.domains = {};
@@ -137,12 +186,12 @@ function BoardcastManager(config)
 	}
 }
 
-BoardcastManager.prototype.login = function (user_id, user_name)
+BoardcastManager.prototype.login = function (uid)
 {
-	if(this.user_name_map[user_name]!=undefined) {
+	if(this.name_map[name]!=undefined) {
 		return undefined;
 	}
-	if(this.user_id_map[user_id]!=undefined) {
+	if(this.uid_map[uid]!=undefined) {
 		return undefined;
 	}
 
@@ -152,30 +201,31 @@ BoardcastManager.prototype.login = function (user_id, user_name)
 		this.user_array.push(null);
 	}
 
-	var userobj = new BoardcastSubscriber(this, index, user_id, user_name);
-	this.user_name_map[user_name] = index;
-	this.user_id_map[user_id] = index;
+	var userobj = new BoardcastSubscriber(this, index, uid);
+	this.uid_map[uid] = index;
 	this.user_array[index] = userobj;
+	return userobj;
 }
 
-BoardcastManager.prototype.logout = function (user_id)
+BoardcastManager.prototype.logout = function (uid)
 {
-	var index = this.user_id_map[user_id];
+	var index = this.uid_map[uid];
 	if(index==undefined) {
 		return;
 	}
 
 	var userobj = this.user_array[index];
 	userobj.leaveAllDomains();
-	this.user_name_map[userobj.user_name] = undefined;
-	this.user_id_map[userobj.user_id] = undefined;
+	userobj.unbindName();
+	userobj.unbindAvatarId();
+	this.uid_map[userobj.uid] = undefined;
 	this.user_array[index] = null;
 	this.user_free.push(index);
 }
 
-BoardcastManager.prototype.joinDomain = function(user_id, domain_id)
+BoardcastManager.prototype.joinDomain = function(uid, domain_id)
 {
-	var index = this.user_id_map[user_id];
+	var index = this.uid_map[uid];
 	if(index==undefined) {
 		return;
 	}
@@ -189,9 +239,9 @@ BoardcastManager.prototype.joinDomain = function(user_id, domain_id)
 	userobj.joinDomain(domain);
 }
 
-BoardcastManager.prototype.leaveDomain = function(user_id, domain_id)
+BoardcastManager.prototype.leaveDomain = function(uid, domain_id)
 {
-	var index = this.user_id_map[user_id];
+	var index = this.uid_map[uid];
 	if(index==undefined) {
 		return;
 	}
@@ -200,18 +250,27 @@ BoardcastManager.prototype.leaveDomain = function(user_id, domain_id)
 	userobj.leaveDomain(domain_id);
 }
 
-BoardcastManager.prototype.sendToUserId = function (user_id, message)
+BoardcastManager.prototype.sendByUID = function (uid, message)
 {
-	var index = this.user_id_map[user_id];
+	var index = this.uid_map[uid];
 	if(index==undefined) {
 		return;
 	}
 	this.user_array[index].pushMessage(message);
 }
 
-BoardcastManager.prototype.sendToUserName = function (user_name, message)
+BoardcastManager.prototype.sendByAID = function (uid, message)
 {
-	var index = this.user_name_map[user_name];
+	var index = this.aid_map[aid];
+	if(index==undefined) {
+		return;
+	}
+	this.user_array[index].pushMessage(message);
+}
+
+BoardcastManager.prototype.sendByName = function (name, message)
+{
+	var index = this.name_map[name];
 	if(index==undefined) {
 		return;
 	}
@@ -228,9 +287,9 @@ BoardcastManager.prototype.sendToDomain = function (domain_id, message)
 	}
 }
 
-BoardcastManager.prototype.getMessage = function (user_id)
+BoardcastManager.prototype.getMessage = function (uid)
 {
-	var index = this.user_id_map[user_id];
+	var index = this.uid_map[uid];
 	if(index==undefined) {
 		return undefined;
 	}
@@ -239,9 +298,9 @@ BoardcastManager.prototype.getMessage = function (user_id)
 	return userobj.getMessage();
 }
 
-BoardcastManager.prototype.getSubscriber = function (user_id)
+BoardcastManager.prototype.getSubscriber = function (uid)
 {
-	var index = this.user_id_map[user_id];
+	var index = this.uid_map[uid];
 	if(index==undefined) {
 		return undefined;
 	}
