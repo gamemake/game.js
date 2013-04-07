@@ -1,5 +1,16 @@
-var boardcast = require('./boardcast.js');
+var config = require('./config.js');
+config.load('./config.json');
 
+var dispatcher = require('./dispatcher.js');
+dipatcher.register('', function (session, method, args) {
+});
+
+var frontend = require('./frontend_http.js');
+frontend.start(config.get('frontend.ip'), config.get('frontend.port'));
+
+/*
+var boardcast = require('./boardcast.js');
+*/
 
 /*
 var config = require('./config.js');

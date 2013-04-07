@@ -1,3 +1,4 @@
+
 {
 	"userauth" : {
 		"mysql" : {
@@ -6,5 +7,9 @@
 			"password" : "",
 			"database" : "test"
 		}
+	},
+	"frontend" : {
+		"ip" : "0.0.0.0",
+		"port" : "1982"
 	}
 }
