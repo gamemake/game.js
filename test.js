@@ -2,7 +2,8 @@ var config = require('./config.js');
 config.load('./config.json');
 
 var dispatcher = require('./dispatcher.js');
-dipatcher.register('', function (session, method, args) {
+dispatcher.register('KNIGHT_C2S', function (session, method, args) {
+	return true;
 });
 
 var frontend = require('./frontend_http.js');

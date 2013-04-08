@@ -312,10 +312,12 @@ BoardcastManager.prototype.getDomain = function (domain_id)
 	return this.domains[domain_id];
 }
 
-module.exports.createManager = function (msgq_level_count, msgq_size) {
+module.exports.createManager = function (msgq_level_count, msgq_size)
+{
 	return new BoardcastManager(msgq_level_count, msgq_size);
 }
 
-module.exports.createMessage = function (level, body) {
+module.exports.createMessage = function (level, body)
+{
 	return new BoardcastMessage(level, body);
 }

@@ -3,7 +3,7 @@ var group_map = {};
 
 module.exports.call = function (session, method, args)
 {
-	var names = mehtod.split('.');
+	var names = method.split('.');
 	var group = group_map[names[0]];
 	if(group==undefined) {
 		return false;

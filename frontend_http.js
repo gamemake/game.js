@@ -2,9 +2,63 @@
 var querystring = require('querystring');
 var url = require('url');
 var userauth = require('./userauth.js');
-var usersession = require('./usersession.js');
+var session_manager = require('./session_manager.js');
 var dispatcher = require('./dispatcher.js');
 var http = require('http');
+
+function UserSession (uid)
+{
+	this._uid = uid;
+	this._aid = undefined;
+	this._res = undefined;
+	this._cmds = undefined;
+}
+
+UserSession.prototype.getUID = function ()
+{
+	return this._uid;
+}
+
+UserSession.prototype.getAID = function ()
+{
+	return this._aid;
+}
+
+UserSession.prototype.begin = function (res)
+{
+	this._res = res;
+	this._cmds = [];
+}
+
+UserSession.prototype.push = function (cmd)
+{
+	if(this._cmds!=undefined) {
+		this._cmds.push(cmd);
+	}
+}
+
+UserSession.prototype.end = function (err)
+{
+	if(this._res==undefined) {
+		return;
+	}
+
+	if(err!=undefined) {
+		this._res.writeHead(200);
+		this._res.end('ERROR='+err);
+	} else {
+		var result = 'ERROR=0;{"response":[';
+		for(i=0; i<this._cmds.length; i++) {
+			if(i==0) result += ',';
+			result += _cmds[i];
+		}
+		result += ']}';
+		this._res.writeHead(200);
+		this._res.end(result);
+	}
+	this._res = undefined;
+	this._cmds = undefined;
+}
 
 function method_login(args, res)
 {
@@ -19,7 +73,7 @@ function method_login(args, res)
 			res.writeHead(200);
 			res.end('ERROR=UNKNOWN');
 		} else {
-			var session_key = usersession.login(user_id);
+			var session_key = session_manager.login(user_id, new UserSession(user_id));
 			if(session_key==undefined) {
 				res.writeHead(200);
 				res.end('ERROR=UNKNOWN');
@@ -33,20 +87,20 @@ function method_login(args, res)
 
 function method_logout(args, res)
 {
-	var session = usersession.get(args.session_key);
+	var session = session_manager.get(args.session_key);
 	if(session==undefined) {
 		res.writeHead(200);
 		res.end('ERROR=INVALID_SESSION');
 		return;
 	}
-	usersession.logout(session.user_id);
+	session_manager.logout(session.user_id);
 	res.writeHead(200);
 	res.end('ERROR=0');
 }
 
 function method_request(args, res)
 {
-	var session = usersession.get(args.session_key);
+	var session = session_manager.get(args.session_key);
 	if(session==undefined) {
 		res.writeHead(200);
 		res.end('ERROR=INVALID_SESSION');
@@ -73,16 +127,19 @@ function method_request(args, res)
 		return;
 	}
 
+	session.begin(res);
+
 	if(!dispatcher.call(session, method, message)) {
-		res.writeHead(200);
-		res.end('ERROR=UNDEFINE_METHOD');
+		session.end('UNDEFINE_METHOD');
 		return;
 	}
+
+	session.end();
 }
 
 function method_pull(_this, args, res)
 {
-	var session = usersession.get(args.session_key);
+	var session = session_manager.get(args.session_key);
 	if(session==undefined) {
 		res.writeHead(200);
 		res.end('ERROR=INVALID_SESSION');
@@ -111,7 +168,7 @@ function dispatcher_http(req, res)
 				});
 				req.addListener('end', function() {
 					args = querystring.parse(info);
-					method(this, args, res);
+					method(args, res);
 				});
 				return;
 			} else if(req.method=='GET') {
