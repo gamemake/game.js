@@ -1,64 +1,34 @@
 
-var querystring = require('querystring');
-var url = require('url');
-var userauth = require('./userauth.js');
-var session_manager = require('./session_manager.js');
-var dispatcher = require('./dispatcher.js');
 var http = require('http');
+var url = require('url');
+var querystring = require('querystring');
+var dispatcher = require('./dispatcher.js');
+var UserSession = require('./user_session.js');
+var dal_user = require('./dal_user.js');
+var utils = require('./utils.js');
 
-function UserSession (uid)
-{
-	this._uid = uid;
-	this._aid = undefined;
-	this._res = undefined;
-	this._cmds = undefined;
-}
+var session_map = {};
 
-UserSession.prototype.getUID = function ()
-{
-	return this._uid;
-}
-
-UserSession.prototype.getAID = function ()
-{
-	return this._aid;
-}
-
-UserSession.prototype.begin = function (res)
-{
-	this._res = res;
-	this._cmds = [];
-}
-
-UserSession.prototype.push = function (cmd)
-{
-	if(this._cmds!=undefined) {
-		this._cmds.push(cmd);
-	}
-}
-
-UserSession.prototype.end = function (err)
-{
-	if(this._res==undefined) {
-		return;
-	}
-
-	if(err!=undefined) {
-		this._res.writeHead(200);
-		this._res.end('ERROR='+err);
-	} else {
-		var result = 'ERROR=0;{"response":[';
-		for(i=0; i<this._cmds.length; i++) {
-			if(i==0) result += ',';
-			result += _cmds[i];
+var HttpSession = UserSession.extend({
+	init : function ()
+	{
+		this.session_key = '';
+		this._super();
+	},
+	login : function (uid)
+	{
+		this.session_key = utils.genSessionKey(uid);
+		session_map[this.session_key] = this;
+		return this._super(uid);
+	},
+	logout : function ()
+	{
+		this._super();
+		if(this.session_key!='') {
+			session_map[this.session_key] = undefined;
 		}
-		result += ']}';
-		this._res.writeHead(200);
-		this._res.end(result);
 	}
-	this._res = undefined;
-	this._cmds = undefined;
-}
+});
 
 function method_login(args, res)
 {
@@ -67,19 +37,18 @@ function method_login(args, res)
 		res.end('ERROR=INVALID_PARAMETER');
 		return;
 	}
-
-	userauth.authToken(args.token, function(user_id) {
-		if(user_id==undefined) {
+	dal_user.authToken(args.token, function(err, user_id) {
+		if(err) {
 			res.writeHead(200);
-			res.end('ERROR=UNKNOWN');
+			res.end('ERROR='+err);
 		} else {
-			var session_key = session_manager.login(user_id, new UserSession(user_id));
-			if(session_key==undefined) {
+			var session = new HttpSession();
+			if(!session.login(user_id)) {
 				res.writeHead(200);
 				res.end('ERROR=UNKNOWN');
 			} else {
 				res.writeHead(200);
-				res.end('ERROR=0;{"session_key":"'+session_key+'"}');
+				res.end('ERROR=0;{"session_key":"'+session.session_key+'"}');
 			}
 		}
 	});
@@ -87,20 +56,34 @@ function method_login(args, res)
 
 function method_logout(args, res)
 {
-	var session = session_manager.get(args.session_key);
+	if(typeof(args.session_key)!='string')
+	{
+		res.writeHead(200);
+		res.end('ERROR=INVALID_PARAMETER');
+		return;
+	}
+
+	var session = session[args.session_key];
 	if(session==undefined) {
 		res.writeHead(200);
 		res.end('ERROR=INVALID_SESSION');
 		return;
 	}
-	session_manager.logout(session.user_id);
+	session.logout(session.user_id);
 	res.writeHead(200);
 	res.end('ERROR=0');
 }
 
 function method_request(args, res)
 {
-	var session = session_manager.get(args.session_key);
+	if(typeof(args.session_key)!='string')
+	{
+		res.writeHead(200);
+		res.end('ERROR=INVALID_PARAMETER');
+		return;
+	}
+
+	var session = session_map[args.session_key];
 	if(session==undefined) {
 		res.writeHead(200);
 		res.end('ERROR=INVALID_SESSION');

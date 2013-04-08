@@ -1,7 +1,7 @@
 
 var mysql = require('mysql');
 var config = require('./config.js');
-var pool   = mysql.createPool(config.get('userdata.mysql'));
+var pool   = mysql.createPool(config.get('dal_avatar.mysql'));
 
 module.exports.create = function (aid, data, callback)
 {

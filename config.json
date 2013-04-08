@@ -1,6 +1,14 @@
 
 {
-	"userauth" : {
+	"dal_user" : {
+		"mysql" : {
+			"host" : "127.0.0.1",
+			"user" : "root",
+			"password" : "",
+			"database" : "test"
+		}
+	},
+	"dal_avatar" : {
 		"mysql" : {
 			"host" : "127.0.0.1",
 			"user" : "root",

@@ -1,3 +1,10 @@
+/*var boardcast = require('./boardcast.js');
+var manager = boardcast.createManager({});
+
+console.log(manager);
+*/
+
+
 var config = require('./config.js');
 config.load('./config.json');
 
@@ -8,6 +15,43 @@ dispatcher.register('KNIGHT_C2S', function (session, method, args) {
 
 var frontend = require('./frontend_http.js');
 frontend.start(config.get('frontend.ip'), config.get('frontend.port'));
+
+/*
+var Class = require('./class.js');
+
+var Person = Class.extend({
+	// init是构造函数
+	init: function(name) {
+		console.log("P:init");
+		this.name = name;
+	},
+	getName: function() {
+		console.log("P:getName");
+		return this.name;
+	}
+});
+// Employee类从Person类继承
+var Employee = Person.extend({
+	// init是构造函数
+	init: function(name, employeeID) {
+		//  在构造函数中调用父类的构造函数
+		console.log("E:init");
+		this._super(name);
+		this.employeeID = employeeID;
+	},
+	getEmployeeID: function() {
+		console.log("E:getEmployeeID");
+		return this.employeeID;
+	},
+	getName: function() {
+		//  调用父类的方法
+		console.log("E:getName");
+		return "Employee name: " + this._super();
+	}
+});
+var zhang = new Employee("ZhangSan", "1234");
+console.log(zhang.getName());   // "Employee name: ZhangSan"
+*/
 
 /*
 var boardcast = require('./boardcast.js');
