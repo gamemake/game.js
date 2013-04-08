@@ -19,5 +19,8 @@
 	"frontend" : {
 		"ip" : "0.0.0.0",
 		"port" : "1982"
+	},
+	"modules" : {
+		"KNIGHT_C2S" : "./knight.js"
 	}
 }

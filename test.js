@@ -8,13 +8,30 @@ console.log(manager);
 var config = require('./config.js');
 config.load('./config.json');
 
-var dispatcher = require('./dispatcher.js');
-dispatcher.register('KNIGHT_C2S', function (session, method, args) {
-	return true;
-});
-
 var frontend = require('./frontend_http.js');
 frontend.start(config.get('frontend.ip'), config.get('frontend.port'));
+
+var readLine = require ("readline");
+if (process.platform === "win32"){
+    var rl = readLine.createInterface ({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    rl.on ("SIGINT", function (){
+        process.emit ("SIGINT");
+    });
+}
+
+process.on('SIGINT',function(){
+    console.log('stopping...');
+    frontend.stop();
+	process.exit(1);
+});
+
+process.on('exit', function() {
+    console.log('exited');
+});
 
 /*
 var Class = require('./class.js');

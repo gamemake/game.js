@@ -5,7 +5,7 @@ var dal_avatar = require('./dal_avatar.js');
 var boardcast_manager = boardcast.createManager({});
 
 var UserSession = boardcast.Subscriber.extend({
-	init : function (token, callback)
+	init : function ()
 	{
 		this._super(boardcast_manager);
 	},
@@ -20,6 +20,14 @@ var UserSession = boardcast.Subscriber.extend({
 	logout : function ()
 	{
 		this._super();
+	},
+	begin : function ()
+	{
+
+	},
+	end : function()
+	{
+		
 	}
 });
 

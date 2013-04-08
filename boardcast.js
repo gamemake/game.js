@@ -16,36 +16,6 @@ var BoardcastMessage = Class.extend({
 	}
 });
 
-var BoardcastMessageQueue = Class.extend({
-	init : function (size)
-	{
-		this.msg_array = [];
-		this.msg_array.length = size;
-		this.msg_start = 0;
-		this.msg_count = 0;
-	},
-	pushMessage : function (message)
-	{
-		var index = (this.msg_start + this.msg_count) % this.msg_array.length;
-		this.msg_array[index] = message;
-		if(this.msg_count<this.msg_array.length) {
-			this.msg_count += 1;
-		}
-	},
-	getMessage : function (ret)
-	{
-		if(this.msg_count>0) {
-			for(i=0; i<this.msg_count; i++) {
-				var index = (this.msg_start+i) % this.msg_array.length;
-				ret.push(this.msg_array[index]);
-				this.msg_array[index] = null;
-			}
-		}
-		this.msg_start = 0;
-		this.msg_count = 0;
-	}
-});
-
 var BoardcastSubscriber = Class.extend({
 	init : function (manager)
 	{
@@ -55,11 +25,6 @@ var BoardcastSubscriber = Class.extend({
 		this.aid = -1;
 		this.name = '';
 		this.domains = {};
-		this.msgq_array = [];
-		this.msgq_array.length = manager.msgq_level_count;
-		for(i=0; i<this.msgq_array.length; i++) {
-			this.msgq_array[i] = new BoardcastMessageQueue(manager.msgq_size);
-		}
 	},
 	login : function (user_id)
 	{
@@ -148,21 +113,6 @@ var BoardcastSubscriber = Class.extend({
 			domains[domain_id] = undefined;
 			domain.leave(this.uid);
 		}
-	},
-	pushMessage : function (message)
-	{
-		if(message.level<0 && message.level>=this.msgq_array.length) {
-			return;
-		}
-		this.msgq_array[message.level].pushMessage(message);
-	},
-	getMessage : function ()
-	{
-		var ret = [];
-		for(i=0; i<this.msgq_array.length; i++) {
-			this.msgq_array[i].get(ret);
-		}
-		return ret;
 	}
 });
 
