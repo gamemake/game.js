@@ -34,7 +34,32 @@ var UserSession = boardcast.Subscriber.extend({
 	logout : function () { this._super(); },
 	begin : function () { },
 	end : function() { },
+	send : function () { },
 	*/
+	loginSession : function (callback)
+	{
+		var session = this;
+		session.login();
+		session.setPending(true);
+
+		dal_avatar.getAvatarList(this.uid, function (err, result) {
+			this.avatar_list = result;
+			main_module.loginSession(function(){
+				session.setPending(false);
+				if(callback!=undefined) callback();
+			});
+		});
+	},
+	logoutSession : function (callback)
+	{
+		var session = this;
+		session.setPending(true);
+		main_module.logoutSession(function(){
+			session.setPending(false);
+			session.logout();
+			if(callback!=undefined) callback();
+		});
+	},
 	setPending : function (flag)
 	{
 		if(flag) {

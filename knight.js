@@ -4,16 +4,14 @@ module.exports.isMainModule = function ()
 	return true;
 }
 
-module.exports.haaaaa = 1;
-
-module.exports.login = function ()
+module.exports.loginSession = function (callback)
 {
-	
+	callback();
 }
 
-module.exports.logout = function ()
+module.exports.logoutSession = function (callback)
 {
-	
+	callback();
 }
 
 module.exports.Ping = function(session, args)

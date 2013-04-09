@@ -147,9 +147,7 @@ var HttpSession = user_session.UserSession.extend({
 	},
 	end : function (err)
 	{
-		if(this.res==null) {
-			return;
-		}
+		if(this.res==null) return;
 
 		if(err) {
 			this.res.writeHead(200);
@@ -167,6 +165,11 @@ var HttpSession = user_session.UserSession.extend({
 
 		this.res = null;
 		this.sendqueue = [];
+	},
+	send : function (msg)
+	{
+		if(this.res==null) return;
+		this.sendqueue.push(msg);
 	}
 });
 
@@ -182,17 +185,17 @@ function method_login(args, res)
 			res.writeHead(200);
 			res.end('ERROR='+err);
 		} else {
-			var old_session = user_session.getSession(user_id);
-			if(old_session) {
-				old_session.logout();
-				if(user_session.getSession(uid)!=undefined) {
-					res.writeHead(200);
-					res.end('ERROR=ALREADY_EXISTED');
-					return;
+			var session = user_session.getSession(user_id);
+			if(session) {
+				if(!session.isPending()) {
+					session.logoutSession();
 				}
+				res.writeHead(200);
+				res.end('ERROR=ALREADY_EXISTED');
+				return;
 			}
 
-			var session = new HttpSession();
+			session = new HttpSession();
 			if(!session.login(user_id)) {
 				res.writeHead(200);
 				res.end('ERROR=UNKNOWN');
@@ -237,6 +240,12 @@ function method_request(args, res)
 	if(session==undefined) {
 		res.writeHead(200);
 		res.end('ERROR=INVALID_SESSION');
+		return;
+	}
+
+	if(session.isPending()) {
+		res.writeHead(200);
+		res.end('ERROR=TRY_AGAIN');
 		return;
 	}
 
