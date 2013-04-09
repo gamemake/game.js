@@ -2,7 +2,6 @@
 var http = require('http');
 var url = require('url');
 var querystring = require('querystring');
-var dispatcher = require('./dispatcher.js');
 var user_session = require('./user_session.js');
 var dal_user = require('./dal_user.js');
 var utils = require('./utils.js');
@@ -263,7 +262,7 @@ function method_request(args, res)
 
 	session.begin(res);
 
-	if(!dispatcher.call(session, method, message)) {
+	if(!user_session.call(session, method, message)) {
 		session.end('UNDEFINE_METHOD');
 		return;
 	}
