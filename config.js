@@ -1,19 +1,18 @@
 
+var fs = require('fs');
 var global_config = {};
 
-module.exports.load = function (file)
+module.exports.load = function (filename)
 {
-	var config = {};
-
 	try {
-		config = require(file);
-	} catch(e) {
-		console.log()
-		return false;
-	}
 
-	global_config = config;
-	return true;
+		var body = fs.readFileSync(filename);
+		var root = JSON.parse(body);
+		global_config = root;
+	} catch(e) {
+		console.log('load config failed');
+		process.exit(1);
+	}
 }
 
 module.exports.get = function (name)

@@ -3,10 +3,11 @@ var http = require('http');
 var url = require('url');
 var querystring = require('querystring');
 var dispatcher = require('./dispatcher.js');
-var UserSession = require('./user_session.js');
+var user_session = require('./user_session.js');
 var dal_user = require('./dal_user.js');
 var utils = require('./utils.js');
-
+var config = require('./config.js');
+var http_message_queue = config.get('http_message_queue');
 var session_map = {};
 
 var BoardcastMessageQueue = Class.extend({
@@ -17,16 +18,18 @@ var BoardcastMessageQueue = Class.extend({
 		this.msg_start = 0;
 		this.msg_count = 0;
 	},
-	pushMessage : function (message)
+	pushMessage : function (message, level)
 	{
+		if(level==undefined) level = 0;
 		var index = (this.msg_start + this.msg_count) % this.msg_array.length;
 		this.msg_array[index] = message;
 		if(this.msg_count<this.msg_array.length) {
 			this.msg_count += 1;
 		}
 	},
-	getMessage : function (ret)
+	pullMessage : function ()
 	{
+/*
 		if(this.msg_count>0) {
 			for(i=0; i<this.msg_count; i++) {
 				var index = (this.msg_start+i) % this.msg_array.length;
@@ -36,18 +39,22 @@ var BoardcastMessageQueue = Class.extend({
 		}
 		this.msg_start = 0;
 		this.msg_count = 0;
+*/
 	}
 });
 
-var HttpSession = UserSession.extend({
+var HttpSession = user_session.UserSession.extend({
 	init : function ()
 	{
 		this._super();
 		this.session_key = '';
+		this.msg_count = 0;
 		this.msgq_array = [];
-		this.msgq_array.length = manager.msgq_level_count;
-		for(i=0; i<this.msgq_array.length; i++) {
-			this.msgq_array[i] = new BoardcastMessageQueue(manager.msgq_size);
+		this.res = null;
+		this.pull_res = null;
+		this.pull_timer = -1;
+		for(i=0; i<http_message_queue.length; i++) {
+			this.msgq_array.push(new BoardcastMessageQueue(http_message_queue[i]));
 		}
 	},
 	login : function (uid)
@@ -58,35 +65,109 @@ var HttpSession = UserSession.extend({
 	},
 	logout : function ()
 	{
-		this._super();
 		if(this.session_key!='') {
 			session_map[this.session_key] = undefined;
+			this.session_key = '';
 		}
+
+		if(this.pull_res!=null) {
+			this.pull_res.writeHead(200);
+			this.pull_res.end('ERROR=0');
+			timer.clearTimerout(this.pull_timer);
+			this.pull_res = null;
+			this.pull_timer = -1;
+		}
+
+		this._super();
 	},
 	pushMessage : function (message)
 	{
 		if(message.level<0 && message.level>=this.msgq_array.length) {
 			return;
 		}
+
+		this.msg_count++;
 		this.msgq_array[message.level].pushMessage(message);
-	},
-	getMessage : function ()
-	{
-		var ret = [];
-		for(i=0; i<this.msgq_array.length; i++) {
-			this.msgq_array[i].get(ret);
+
+		if(this.pull_res!=null) {
+			var res = this.pull_res;
+			timer.clearTimerout(this.pull_timer);
+			this.pull_res = null;
+			this.pull_timer = -1;
+			this.pullMessage(res);
 		}
-		return ret;
+	},
+	pullMessage : function (res)
+	{
+		if(this.pull_res!=null) {
+			this.pull_res.writeHead(200);
+			this.pull_res.end('ERROR=0');
+			timer.clearTimerout(this.pull_timer);
+			this.pull_res = null;
+			this.pull_timer = -1;
+		}
+
+		if(this.msg_count==0) {
+			var session = this;
+			this.pull_res = res;
+			this.pull_timer = timer.setTimeout(function () {
+				timer.clearTimerout(sessionsession.pull_timer);
+				session.pull_res = null;
+				session.pull_timer = -1;
+				res.writeHead(200);
+				res.end('ERROR=0');
+			}, 20000);
+			return;
+		}
+/*
+		res.writeHead(200);
+		this.res.write('{"response":[');
+		var count = 0;
+		for(q=0; q<this.msgq_array.length; q++) {
+			for(i=0; i<(this.msgq_array[q]).length; i++) {
+				if(count>0) this.res.write(',');
+				this.res.write((this.msgq_array[q])[i].body);
+				count++;
+			}
+			this.msgq_array[q] = [];
+		}
+		this.res.write(']}');
+		this.res.end();
+*/
+		this.msg_count = 0;
 	},
 	begin : function (res)
 	{
 		if(!this._super()) {
 			return false;
 		}
+		this.res = res;
+		this.pending = false;
+		this.sendqueue = [];
 		return true;
 	},
-	end : function ()
+	end : function (err)
 	{
+		if(this.res==null) {
+			return;
+		}
+
+		if(err) {
+			this.res.writeHead(200);
+			this.res.end('ERROR='+err);
+		} else {
+			this.res.writeHead(200);
+			this.res.write('{"response":[');
+			for(i=0; i<this.sendqueue.length; i++) {
+				if(i>0) this.res.write(',');
+				this.res.write(this.sendqueue[i]);
+			}
+			this.res.write(']}');
+			this.res.end();
+		}
+
+		this.res = null;
+		this.sendqueue = [];
 	}
 });
 
@@ -102,6 +183,16 @@ function method_login(args, res)
 			res.writeHead(200);
 			res.end('ERROR='+err);
 		} else {
+			var old_session = user_session.getSession(user_id);
+			if(old_session) {
+				old_session.logout();
+				if(user_session.getSession(uid)!=undefined) {
+					res.writeHead(200);
+					res.end('ERROR=ALREADY_EXISTED');
+					return;
+				}
+			}
+
 			var session = new HttpSession();
 			if(!session.login(user_id)) {
 				res.writeHead(200);
@@ -177,18 +268,13 @@ function method_request(args, res)
 		return;
 	}
 
-	session.end();
+	if(!session.isPending()) {
+		session.end();
+	}
 }
 
-function method_pull(_this, args, res)
+function method_pull(args, res)
 {
-	var session = session_manager.get(args.session_key);
-	if(session==undefined) {
-		res.writeHead(200);
-		res.end('ERROR=INVALID_SESSION');
-		return;
-	}
-
 	if(typeof(args.session_key)!='string')
 	{
 		res.writeHead(200);
@@ -202,6 +288,8 @@ function method_pull(_this, args, res)
 		res.end('ERROR=INVALID_SESSION');
 		return;
 	}
+
+	session.pullMessage(res);
 }
 
 var methods = {
@@ -261,6 +349,6 @@ module.exports.stop = function ()
 	}
 
 	for(var i in session_map) {
-		session_map.logout();
+		session_map[i].logout();
 	}
 }

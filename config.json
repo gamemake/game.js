@@ -1,5 +1,6 @@
 
 {
+
 	"dal_user" : {
 		"mysql" : {
 			"host" : "127.0.0.1",
@@ -8,6 +9,7 @@
 			"database" : "test"
 		}
 	},
+
 	"dal_avatar" : {
 		"mysql" : {
 			"host" : "127.0.0.1",
@@ -16,11 +18,27 @@
 			"database" : "test"
 		}
 	},
+
 	"frontend" : {
 		"ip" : "0.0.0.0",
 		"port" : "1982"
 	},
+
+	"http_message_queue" : [
+		100,
+		1000
+	],
+
 	"modules" : {
 		"KNIGHT_C2S" : "./knight.js"
+	},
+	"log" : {
+		"path" : "./atlas.log",
+		"option" : {
+			"flags" : "w",
+  			"encoding" : "",
+  			"mode" : "0666"
+  		}
 	}
+
 }

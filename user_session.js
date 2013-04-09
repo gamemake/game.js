@@ -8,27 +8,31 @@ var UserSession = boardcast.Subscriber.extend({
 	init : function ()
 	{
 		this._super(boardcast_manager);
+		this.pending = false;
 	},
-	login : function (uid)
+	/*
+	login : function (uid) { return this._super(uid); },
+	logout : function () { this._super(); },
+	begin : function () { },
+	end : function() { },
+	*/
+	setPending : function (flag)
 	{
-		var old_session = boardcast_manager.getSubscriberByUID(uid);
-		if(old_session) {
-			old_session.logout();
+		if(flag) {
+			this.pending = true;
+		} else {
+			this.pending = false;
 		}
-		return this._super(uid);
 	},
-	logout : function ()
+	isPending : function ()
 	{
-		this._super();
-	},
-	begin : function ()
-	{
-
-	},
-	end : function()
-	{
-		
+		return this.pending;
 	}
 });
 
-module.exports = UserSession;
+module.exports.UserSession = UserSession;
+
+module.exports.getSession = function (uid)
+{
+	return boardcast_manager.getSubscriberByUID(uid);
+}

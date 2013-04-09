@@ -1,9 +1,10 @@
-/*var boardcast = require('./boardcast.js');
-var manager = boardcast.createManager({});
+/*
+var config = require('./config.js');
+config.load('./config.json');
 
-console.log(manager);
+var log = require('./log.js');
+log.info('welcome to china.');
 */
-
 
 var config = require('./config.js');
 config.load('./config.json');

@@ -1,13 +1,27 @@
 
 var config = require('./config.js');
-var group_map = {};
+var modules = {};
+var main_module = undefined;
+var log = require('./log.js');
 
 (function(){
-	var modules = config.get('modules');
-	for(var i in modules) {
-		group_map[i] = require(modules[i]);
+	var modules_config = config.get('modules');
+	for(var i in modules_config) {
+		modules[i] = require(modules_config[i]);
+		if(modules[i].hasOwnProperty('isMainModule')) {
+			if(modules[i].isMainModule()) {
+				if(main_module==undefined) {
+					main_module = modules[i];
+				} else {
+					log.warning('duplicate main module');
+				}
+			}
+		}
 	}
 })();
+
+module.exports.login = main_module.login;
+module.exports.logout = main_module.logout;
 
 module.exports.call = function (session, method, args)
 {
@@ -16,12 +30,12 @@ module.exports.call = function (session, method, args)
 		return false;
 	}
 
-	var group = group_map[names[0]];
-	if(group==undefined) {
-		return false;
-	}
+	var module = modules[names[0]];
+	if(module==undefined) return false;
 
-	var func = group[names[1]];
+	var func = module[names[1]];
+	if(func==undefined) return false;
+
 	func(session, args);
 	return true;
 }
