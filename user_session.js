@@ -28,6 +28,7 @@ var UserSession = boardcast.Subscriber.extend({
 	{
 		this._super(boardcast_manager);
 		this.pending = false;
+		this.avatar = null;
 	},
 	/*
 	login : function (uid) { return this._super(uid); },
@@ -54,11 +55,24 @@ var UserSession = boardcast.Subscriber.extend({
 	{
 		var session = this;
 		session.setPending(true);
-		main_module.logoutSession(function(){
-			session.setPending(false);
-			session.logout();
-			if(callback!=undefined) callback();
+
+		main_module.logoutSession(function () {
+			function completed()
+			{
+				session.setPending(false);
+				session.logout();
+				if(callback!=undefined) callback();
+			}
+			if(session.avatar!=null) {
+				session.avatar.save(function () {
+					session.avatar = null;
+					completed();
+				});
+			} else {
+				completed();
+			}
 		});
+
 	},
 	setPending : function (flag)
 	{
