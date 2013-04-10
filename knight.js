@@ -1,33 +1,32 @@
 
 var dal_avatar = require('./dal_avatar.js');
 
-exports.isMainModule = function ()
+exports.isMainModule = true;
+
+exports.login = function (session, args)
 {
-	return true;
 }
 
-exports.loginSession = function (callback)
+exports.logout = function (session, args)
 {
-	callback();
+	session.logout();
 }
 
-exports.logoutSession = function (callback)
-{
-	callback();
-}
+exports.method_table = {};
 
-exports.Ping = function(session, args)
+exports.method_table.Ping = function(session, args)
 {
+	console.log('Ping');
 	session.send('{"method":"KNIGHT_S2C.Pong","message":{}}');
 }
 
-exports.Create = function(session, args)
+exports.method_table.Create = function(session, args)
 {
 	if(session.avatar_list.length>0) return;
 
 	session.setPending(true);
 	dal_avatar.create(session.uid, String(session.uid), {}, JSON.parse(args.value), function (err, avatar_id) {
-		if(err) {
+		if(!err) {
 			session.end(err);
 		} else {
 			session.avatar_list.push(avatar_id);
@@ -36,7 +35,7 @@ exports.Create = function(session, args)
 	});
 }
 
-exports.Delete = function(session, args)
+exports.method_table.Delete = function(session, args)
 {
 	if(session.avatar_list.length==0) return;
 
@@ -50,7 +49,7 @@ exports.Delete = function(session, args)
 	});
 }
 
-exports.Set = function(session, args)
+exports.method_table.Set = function(session, args)
 {
 	if(session.avatar_list.length==0) return;
 
@@ -64,7 +63,7 @@ exports.Set = function(session, args)
 	});
 }
 
-exports.Get = function(session, args)
+exports.method_table.Get = function(session, args)
 {
 	if(session.avatar_list.length==0) return;
 
@@ -79,6 +78,6 @@ exports.Get = function(session, args)
 	});
 }
 
-exports.Boardcast = function(session, args)
+exports.method_table.Boardcast = function(session, args)
 {
 }

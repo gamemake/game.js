@@ -1,23 +1,50 @@
 var config = require('./config.js');
-var modules = {};
-var main_module = undefined;
 var log = require('./log.js');
 var boardcast = require('./boardcast.js');
 
+var method_map = {};
+var method_array = [undefined, undefined];
+
 (function(){
 	var modules_config = config.get('modules');
+	var main_module = undefined;
 	for(var i in modules_config) {
-		modules[i] = require(modules_config[i]);
-		if(modules[i].hasOwnProperty('isMainModule')) {
-			if(modules[i].isMainModule()) {
+		var isMainModule = false;
+		var mod = require(modules_config[i]);
+		if(mod.hasOwnProperty('isMainModule')) {
+			if(mod.isMainModule) {
 				if(main_module==undefined) {
-					main_module = modules[i];
+					isMainModule = true;
+					main_module = mod;
 				} else {
-					log.warning('duplicate main module');
+					log.error('duplicate main mod ' + i);
+					process.exit(-1);
 				}
 			}
 		}
+
+		if(mod.method_table!=undefined) {
+			if(typeof(mod.method_table)!='object') {
+				log.error('duplicate main mod ' + i);
+				process.exit(-1);
+			}
+			for(var f in mod.method_table) {
+				if(typeof(mod.method_table[f])!='function') {
+					log.error('module ' + i + '@' + f + ' not founction');
+					process.exit(-1);
+				}
+				method_map[i+'.'+f] = method_array.length;
+				method_array.push(mod[f]);
+			}
+		}
 	}
+
+	if(main_module==undefined) {
+		log.error('main module not found');
+		process.exit(-1);
+	}
+	method_array[0] = main_module.login;
+	method_array[1] = main_module.logout;
 })();
 
 var boardcast_manager = boardcast.createManager({});
@@ -27,35 +54,18 @@ var UserSession = boardcast.Subscriber.extend({
 	{
 		this._super(boardcast_manager);
 	},
-	login : function (uid) { return this._super(uid); },
-	logout : function () { this._super(); },
-
-	// from frontend
-	loginSession : function ()
+	login : function (uid)
 	{
-
+		return this._super(uid);
 	},
-	call : function (method, args)
+	logout : function ()
 	{
-		var names = method.split('.');
-		if(names.length!=2) {
-			return false;
-		}
-
-		var module = modules[names[0]];
-		if(module==undefined) return false;
-
-		var func = module[names[1]];
-		if(func==undefined) return false;
-
-		func(this, args);
-		return true;
+		this._super();
 	},
-	logoutSession : function ()
+	call : function (cmd, args)
 	{
-
+		method_array[cmd](this, args);
 	}
-
 });
 
 exports.UserSession = UserSession;
@@ -63,4 +73,11 @@ exports.UserSession = UserSession;
 exports.getSession = function (uid)
 {
 	return boardcast_manager.getSubscriberByUID(uid);
+}
+
+exports.getMethodId = function (method)
+{
+	var index = method_map[method];
+	if(index==undefined) return -1;
+	return index;
 }

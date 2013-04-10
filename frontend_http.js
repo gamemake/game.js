@@ -16,7 +16,7 @@ function pullMessage(res, queue)
 	res.write('ERROR=0;{"response":[');
 	for(i=0; i<queue.length; i++) {
 		if(i>0) res.write(',');
-		if(typeof(queue[i]=='object') {
+		if(typeof(queue[i])=='object') {
 			res.write(msg_array[index]);
 		} else {
 			res.write(msg_array[index]);
@@ -65,13 +65,8 @@ var HttpSession = user_session.UserSession.extend({
 	},
 	send : function (message)
 	{
-		if(this.inLogout) {
-			return;
-		}
-
 		if(this.pull_queue.lenght>=queue_max_size) {
-			this.inLogout = true;
-			this.call('logout', '', {});
+			this.call('main', 'logout', {});
 			return;
 		}
 
@@ -87,68 +82,6 @@ var HttpSession = user_session.UserSession.extend({
 			this.pull_timer = -1;
 		}
 	},
-	pull : function (res, seq)
-	{
-		if(seq<this.pull_seq || seq>this.pull_seq+1) {
-			res.writeHead(200);
-			res.end('ERROR=INVALID_PARAMETER');
-			return;
-		}
-
-		if(seq==this.pull_seq) {
-			pullMessage(res, this.pull_queue_b);
-			return;
-		}
-
-		if(this.pull_res!=undefined) {
-			this.pull_res.writeHead(200);
-			this.pull_res.end('ERROR=TRY_AGAIN');
-			timer.clearTimerout(this.pull_timer);
-			this.pull_res = undefined;
-			this.pull_timer = -1;
-		}
-
-		this.pull_res = res;
-		this.pull_timer = timer.setTimeout(function () {
-			timer.clearTimerout(sessionsession.pull_timer);
-			session.pull_res.writeHead(200);
-			session.pull_res.end('ERROR=TRY_AGAIN');
-			session.pull_res = undefined;
-			session.pull_timer = -1;
-		}, 20000);
-	},
-	begin : function (res)
-	{
-		this.res = res;
-		this.sendqueue = [];
-		return true;
-	},
-	end : function (err)
-	{
-		if(this.res==null) return;
-
-		if(err) {
-			this.res.writeHead(200);
-			this.res.end('ERROR='+err);
-		} else {
-			this.res.writeHead(200);
-			this.res.write('ERROR=0;{"response":[');
-			for(i=0; i<this.sendqueue.length; i++) {
-				if(i>0) this.res.write(',');
-				this.res.write(this.sendqueue[i]);
-			}
-			this.res.write(']}');
-			this.res.end();
-		}
-
-		this.res = null;
-		this.sendqueue = [];
-	},
-	send : function (msg)
-	{
-		if(this.res==null) return;
-		this.sendqueue.push(msg);
-	}
 });
 
 function method_login(args, res)
@@ -165,12 +98,9 @@ function method_login(args, res)
 		} else {
 			var session = user_session.getSession(user_id);
 			if(session) {
-				if(session.state<3) {
-					session.state = 3;
-					if(!session.isPending()) {
-						session.setPending(true);
-						session.logoutSession();
-					}
+				if(!session.inLogout) {
+					session.inLogout = true;
+					session.call(1, {});
 				}
 				res.writeHead(200);
 				res.end('ERROR=ALREADY_EXISTED');
@@ -184,8 +114,7 @@ function method_login(args, res)
 			} else {
 				res.writeHead(200);
 				res.end('ERROR=0;{"session_key":"'+session.session_key+'"}');
-				session.begin();
-				session.call('loginSession', {});
+				session.call(0, {});
 			}
 		}
 	});
@@ -207,23 +136,18 @@ function method_logout(args, res)
 		return;
 	}
 
-	if(session.isPending()) {
-		res.writeHead(200);
-		res.end('ERROR=TRY_AGAIN');
-		return;
+	if(!session.inLogout) {
+		session.inLogout = true;
+		session.call(1, {});
 	}
 
-	session.begin
-	session.res = res;
-	session.setPending(true);
-	session.logout(session.user_id);
 	res.writeHead(200);
 	res.end('ERROR=0');
 }
 
 function method_request(args, res)
 {
-	if(typeof(args.session_key)!='string')
+	if(typeof(args.session_key)!='string' || typeof(args.seq)!='number')
 	{
 		res.writeHead(200);
 		res.end('ERROR=INVALID_PARAMETER');
@@ -237,12 +161,29 @@ function method_request(args, res)
 		return;
 	}
 
-	if(session.isPending()) {
+	if(args.seq==session.req_seq) {
 		res.writeHead(200);
-		res.end('ERROR=TRY_AGAIN');
+		res.end('ERROR=0');
+	}
+
+	if(args.seq!=session.req_seq+1) {
+		res.writeHead(200);
+		res.end('ERROR=INVALID_PARAMETER');
 		return;
 	}
 
+	var method = request.method;
+	if(typeof(method)!='string') {
+		res.writeHead(200);
+		res.end('ERROR=INVALID_PARAMETER');
+		return;
+	}
+	var cmd = user_session.getMethodId(method);
+	if(cmd<0) {
+		res.writeHead(200);
+		res.end('ERROR=UNDEFINE_METHOD');
+		return;
+	}
 	var request = args.request;
 	if(typeof(request)!='string') {
 		res.writeHead(200);
@@ -250,12 +191,6 @@ function method_request(args, res)
 		return;
 	}
 	request = JSON.parse(request);
-	var method = request.method;
-	if(typeof(method)!='string') {
-		res.writeHead(200);
-		res.end('ERROR=INVALID_PARAMETER');
-		return;
-	}
 	var message = request.message;
 	if(typeof(message)!='object') {
 		res.writeHead(200);
@@ -263,21 +198,12 @@ function method_request(args, res)
 		return;
 	}
 
-	session.begin(res);
-
-	if(!user_session.call(session, method, message)) {
-		session.end('UNDEFINE_METHOD');
-		return;
-	}
-
-	if(!session.isPending()) {
-		session.end();
-	}
+	session.call(cmd, message);
 }
 
 function method_pull(args, res)
 {
-	if(typeof(args.session_key)!='string')
+	if(typeof(args.session_key)!='string' || typeof(args.seq)!='number')
 	{
 		res.writeHead(200);
 		res.end('ERROR=INVALID_PARAMETER');
@@ -291,7 +217,33 @@ function method_pull(args, res)
 		return;
 	}
 
-	session.pull(res, args.seq);
+	if(args.seq==this.pull_seq) {
+		pullMessage(res, session.pull_queue_b);
+		return;
+	}
+
+	if(args.seq!=this.pull_seq+1) {
+		res.writeHead(200);
+		res.end('ERROR=INVALID_PARAMETER');
+		return;
+	}
+
+	if(session.pull_res!=undefined) {
+		session.pull_res.writeHead(200);
+		session.pull_res.end('ERROR=TRY_AGAIN');
+		timer.clearTimerout(session.pull_timer);
+		session.pull_res = undefined;
+		session.pull_timer = -1;
+	}
+
+	session.pull_res = res;
+	session.pull_timer = timer.setTimeout(function () {
+		timer.clearTimerout(session.pull_timer);
+		session.pull_res.writeHead(200);
+		session.pull_res.end('ERROR=TRY_AGAIN');
+		session.pull_res = undefined;
+		session.pull_timer = -1;
+	}, 20000);
 }
 
 var methods = {
@@ -351,6 +303,10 @@ exports.stop = function ()
 	}
 
 	for(var i in session_map) {
-		session_map[i].logoutSession();
+		var session = session_map[i];
+		if(!session.inLogout) {
+			session.inLogout = true;
+			session.call(1, {});
+		}
 	}
 }
