@@ -2,7 +2,7 @@
 var fs = require('fs');
 var global_config = {};
 
-module.exports.load = function (filename)
+exports.load = function (filename)
 {
 	try {
 
@@ -15,7 +15,7 @@ module.exports.load = function (filename)
 	}
 }
 
-module.exports.get = function (name)
+exports.get = function (name)
 {
 	var arr = name.split('.');
 	if(arr.length==0) return undefined;

@@ -4,16 +4,6 @@ var Class = require('./class.js');
 var message_seq = 0;
 const message_max = 800000000;
 
-var BoardcastMessage = function (level, body)
-{
-	this.level = level;
-	this.body = body;
-	this.seq = message_seq++;
-	if(message_seq==message_max) {
-		message_seq = 0;
-	}
-}
-
 var BoardcastSubscriber = Class.extend({
 	init : function (manager)
 	{
@@ -34,7 +24,7 @@ var BoardcastSubscriber = Class.extend({
 			this.index = this.manager.user_array.length;
 			this.manager.user_array.push(this);
 		} else {
-			this.manager.user_array[index] = this;
+			this.manager.user_array[this.index] = this;
 		}
 		this.uid = user_id;
 		this.manager.uid_map[user_id] = this.index;
@@ -53,7 +43,7 @@ var BoardcastSubscriber = Class.extend({
 			this.unbindAvatarId();
 		}
 		if(this.uid!=-1) {
-			this.manager.uid_map[this.uid] = undefined;
+			delete this.manager.uid_map[this.uid];
 		}
 		if(this.index!=-1) {
 			this.manager.user_array[this.index] = null;
@@ -74,7 +64,7 @@ var BoardcastSubscriber = Class.extend({
 	unbindAvatarId : function()
 	{
 		if(this.aid!=-1) {
-			manager.aid_map[this.aid] = undefined;
+			delete manager.aid_map[this.aid];
 			this.aid = -1;
 			return true;
 		}
@@ -94,7 +84,7 @@ var BoardcastSubscriber = Class.extend({
 	unbindName : function()
 	{
 		if(this.name!='') {
-			manager.name_map[this.name] = undefined;
+			delete manager.name_map[this.name];
 			this.name = '';
 			return true;
 		}
@@ -108,7 +98,7 @@ var BoardcastSubscriber = Class.extend({
 	{
 		var domain = domains[domain_id];
 		if(domain!=undefined) {
-			domains[domain_id] = undefined;
+			delete domains[domain_id];
 			domain.leave(this.uid);
 		}
 	}
@@ -127,9 +117,9 @@ var BoardcastDomain = Class.extend({
 	},
 	leave : function (uid)
 	{
-		this.users[uid] = undefined;
+		delete this.users[uid];
 		if(this.users.length==0) {
-			manager.domains[this.domain_id] = undefined;
+			delete manager.domains[this.domain_id];
 		}
 	},
 	pushMessage : function(message, level)
@@ -175,25 +165,76 @@ var BoardcastManager = Class.extend({
 		var userobj = this.user_array[index];
 		userobj.leaveDomain(domain_id);
 	},
-	sendToUID : function (uid, message, level)
+	sendToAllUser : function (message)
 	{
-		var index = this.uid_map[uid];
-		if(index==undefined) return;
-		this.user_array[index].pushMessage(message, level);
+		for(i=0; i<this.user_array.length; i++) {
+			var session = this.user_array[i];
+			if(session!=undefined && session.uid!=-1) {
+				session.pushMessage(message);
+			}
+		}
 	},
-	sendToAID : function (uid, message, level)
+	sendToAllAvatar : function (message)
 	{
-		var index = this.aid_map[aid];
-		if(index==undefined)return;
-		this.user_array[index].pushMessage(message, level);
+		for(i=0; i<this.user_array.length; i++) {
+			var session = this.user_array[i];
+			if(session!=undefined && session.aid!=-1) {
+				session.pushMessage(message);
+			}
+		}
 	},
-	sendToName : function (name, message, level)
+	sendToUID : function (uid, message)
 	{
-		var index = this.name_map[name];
-		if(index==undefined)return;
-		this.user_array[index].pushMessage(message, level);
+		function _push(manager, uid)
+		{
+			var index = manager.uid_map[uid];
+			if(index==undefined) return;
+			manager.user_array[index].pushMessage(message);
+		}
+
+		if(typeof(uid)=='array') {
+			for(i=0; i<uid.length; i++) {
+				_push(this, uid[i]);
+			}
+		} else {
+			_push(this, uid);
+		}
 	},
-	sendToDomain : function (domain_id, message, level)
+	sendToAID : function (aid, message)
+	{
+		function _push(manager, _aid)
+		{
+			var index = manager.aid_map[_aid];
+			if(index==undefined) return;
+			manager.user_array[index].pushMessage(message);
+		}
+
+		if(typeof(aid)=='array') {
+			for(i=0; i<aid.length; i++) {
+				_push(this, aid[i]);
+			}
+		} else {
+			_push(this, aid);
+		}
+	},
+	sendToName : function (name, message)
+	{
+		function _push(manager, _name)
+		{
+			var index = manager.name_map[_name];
+			if(index==undefined) return;
+			manager.user_array[index].pushMessage(message);
+		}
+
+		if(typeof(name)=='array') {
+			for(i=0; i<name.length; i++) {
+				_push(this, name[i]);
+			}
+		} else {
+			_push(this, name);
+		}
+	},
+	sendToDomain : function (domain_id, message)
 	{
 		var domain = this.getDomain(domain_id);
 		if(domain==undefined) return;
@@ -229,9 +270,9 @@ var BoardcastManager = Class.extend({
 	}
 });
 
-module.exports.createManager = function ()
+exports.createManager = function ()
 {
 	return new BoardcastManager();
 };
 
-module.exports.Subscriber = BoardcastSubscriber;
+exports.Subscriber = BoardcastSubscriber;

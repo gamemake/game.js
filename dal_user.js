@@ -4,7 +4,7 @@ var config = require('./config.js');
 var pool = mysql.createPool(config.get('dal_user.mysql'));
 var log = require('./log.js');
 
-module.exports.authToken = function (token, callback)
+exports.authToken = function (token, callback)
 {
 	pool.getConnection(function(err, connection) {
 		if(err) {

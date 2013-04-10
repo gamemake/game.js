@@ -1,7 +1,7 @@
 
 var crypto = require('crypto');
 
-module.exports.genSessionKey = function(key)
+exports.genSessionKey = function(key)
 {
 	var md5sum = crypto.createHash('md5');
 	md5sum.update(JSON.stringify(new Date()));

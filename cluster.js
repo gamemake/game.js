@@ -5,7 +5,7 @@ var cluster = require('cluster');
 var workers = [];
 var isrunning = false;
 
-module.exports.startCluster = function (count)
+exports.startCluster = function (count)
 {
 	if(count!=undefined) {
 		numCPUs = count;
@@ -41,7 +41,7 @@ module.exports.startCluster = function (count)
 	isrunning = true;
 }
 
-module.exports.stopCluster = function ()
+exports.stopCluster = function ()
 {
 	if(!isrunning) return;
 
@@ -56,7 +56,7 @@ module.exports.stopCluster = function ()
 	}
 }
 
-module.exports.allocWorker = function ()
+exports.allocWorker = function ()
 {
 	var ret = undefined;
 	var item = undefined;
@@ -72,12 +72,12 @@ module.exports.allocWorker = function ()
 	return ret;
 }
 
-module.exports.incWorkload = function (worker)
+exports.incWorkload = function (worker)
 {
 	workers[worker.id].workload += 1;
 }
 
-module.exports.decWorkload = function (worker)
+exports.decWorkload = function (worker)
 {
 	workers[worker.id].workload -= 1;
 }

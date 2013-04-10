@@ -3,7 +3,7 @@ var mysql = require('mysql');
 var config = require('./config.js');
 var pool   = mysql.createPool(config.get('dal_avatar.mysql'));
 
-module.exports.create = function (uid, name, summary, data, callback)
+exports.create = function (uid, name, summary, data, callback)
 {
 	pool.getConnection(function(err, connection) {
 		if(err) {
@@ -23,7 +23,7 @@ module.exports.create = function (uid, name, summary, data, callback)
 	});
 }
 
-module.exports.delete = function (aid, callback)
+exports.delete = function (aid, callback)
 {
 	pool.getConnection(function(err, connection) {
 		if(err) {
@@ -42,7 +42,7 @@ module.exports.delete = function (aid, callback)
 	});
 }
 
-module.exports.getAvatarList = function (uid, callback)
+exports.getAvatarList = function (uid, callback)
 {
 	pool.getConnection(function(err, connection) {
 		if(err) {
@@ -66,7 +66,7 @@ module.exports.getAvatarList = function (uid, callback)
 	});
 }
 
-module.exports.read = function (aid, callback)
+exports.read = function (aid, callback)
 {
 	pool.getConnection(function(err, connection) {
 		if(err) {
@@ -90,7 +90,7 @@ module.exports.read = function (aid, callback)
 	});
 }
 
-module.exports.readData = function (aid, callback)
+exports.readData = function (aid, callback)
 {
 	pool.getConnection(function(err, connection) {
 		if(err) {
@@ -114,7 +114,7 @@ module.exports.readData = function (aid, callback)
 	});
 }
 
-module.exports.readSummary = function (aid, callback)
+exports.readSummary = function (aid, callback)
 {
 	pool.getConnection(function(err, connection) {
 		if(err) {
@@ -138,7 +138,7 @@ module.exports.readSummary = function (aid, callback)
 	});
 }
 
-module.exports.write = function (aid, summary, data, callback)
+exports.write = function (aid, summary, data, callback)
 {
 	pool.getConnection(function(err, connection) {
 		if(err) {
@@ -158,7 +158,7 @@ module.exports.write = function (aid, summary, data, callback)
 	});
 }
 
-module.exports.writeData = function (aid, data, callback)
+exports.writeData = function (aid, data, callback)
 {
 	pool.getConnection(function(err, connection) {
 		if(err) {
@@ -178,7 +178,7 @@ module.exports.writeData = function (aid, data, callback)
 	});
 }
 
-module.exports.writeSummary = function (aid, summary, callback)
+exports.writeSummary = function (aid, summary, callback)
 {
 	pool.getConnection(function(err, connection) {
 		if(err) {

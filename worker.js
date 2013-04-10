@@ -5,12 +5,12 @@ var isClusterMode = config.get('worker.isClusterMode');
 var callbacks = {};
 var users = {};
 
-module.exports.on = function (prefix, callback)
+exports.on = function (prefix, callback)
 {
 	callbacks[prefix] = callback;
 }
 
-module.exports.queue = function (uid, cmd, args)
+exports.queue = function (uid, cmd, args)
 {
 	if(isCluterMode) {
 		if(cmd=='login') {

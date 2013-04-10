@@ -6,55 +6,41 @@ var user_session = require('./user_session.js');
 var dal_user = require('./dal_user.js');
 var utils = require('./utils.js');
 var config = require('./config.js');
-var http_message_queue = config.get('http_message_queue');
+var queue_max_size = config.get('frontend.queue_max_size');
+
 var session_map = {};
 
-var BoardcastMessageQueue = Class.extend({
-	init : function (size)
-	{
-		this.msg_array = [];
-		this.msg_array.length = size;
-		this.msg_start = 0;
-		this.msg_count = 0;
-	},
-	pushMessage : function (message, level)
-	{
-		if(level==undefined) level = 0;
-		var index = (this.msg_start + this.msg_count) % this.msg_array.length;
-		this.msg_array[index] = message;
-		if(this.msg_count<this.msg_array.length) {
-			this.msg_count += 1;
+function pullMessage(res, queue)
+{
+	res.writeHead(200);
+	res.write('ERROR=0;{"response":[');
+	for(i=0; i<queue.length; i++) {
+		if(i>0) res.write(',');
+		if(typeof(queue[i]=='object') {
+			res.write(msg_array[index]);
+		} else {
+			res.write(msg_array[index]);
 		}
-	},
-	pullMessage : function ()
-	{
-/*
-		if(this.msg_count>0) {
-			for(i=0; i<this.msg_count; i++) {
-				var index = (this.msg_start+i) % this.msg_array.length;
-				ret.push(this.msg_array[index]);
-				this.msg_array[index] = null;
-			}
-		}
-		this.msg_start = 0;
-		this.msg_count = 0;
-*/
 	}
-});
+	this.res.write(']}');
+	this.res.end();
+}
 
 var HttpSession = user_session.UserSession.extend({
 	init : function ()
 	{
 		this._super();
 		this.session_key = '';
-		this.msg_count = 0;
-		this.msgq_array = [];
-		this.res = null;
-		this.pull_res = null;
+		this.inLogout = false;
+
+		this.req_seq = 0;
+		this.req_queue = [];
+
+		this.pull_seq = 0;
+		this.pull_queue = [];
+		this.pull_res = undefined;
 		this.pull_timer = -1;
-		for(i=0; i<http_message_queue.length; i++) {
-			this.msgq_array.push(new BoardcastMessageQueue(http_message_queue[i]));
-		}
+		this.pull_queue_b = [];
 	},
 	login : function (uid)
 	{
@@ -64,12 +50,10 @@ var HttpSession = user_session.UserSession.extend({
 	},
 	logout : function ()
 	{
-		if(this.session_key!='') {
-			session_map[this.session_key] = undefined;
-			this.session_key = '';
-		}
+		delete session_map[this.session_key];
+		this.session_key = '';
 
-		if(this.pull_res!=null) {
+		if(this.pull_res!=undefined) {
 			this.pull_res.writeHead(200);
 			this.pull_res.end('ERROR=0');
 			timer.clearTimerout(this.pull_timer);
@@ -79,69 +63,63 @@ var HttpSession = user_session.UserSession.extend({
 
 		this._super();
 	},
-	pushMessage : function (message)
+	send : function (message)
 	{
-		if(message.level<0 && message.level>=this.msgq_array.length) {
+		if(this.inLogout) {
 			return;
 		}
 
-		this.msg_count++;
-		this.msgq_array[message.level].pushMessage(message);
+		if(this.pull_queue.lenght>=queue_max_size) {
+			this.inLogout = true;
+			this.call('logout', '', {});
+			return;
+		}
 
-		if(this.pull_res!=null) {
-			var res = this.pull_res;
+		this.pull_queue.push(message);
+
+		if(this.pull_res!=undefined) {
 			timer.clearTimerout(this.pull_timer);
-			this.pull_res = null;
+			pullMessage(this.pull_res, this.pull_queue);
+			this.pull_queue_b = this.pull_queue;
+			this.pull_queue = [];
+			this.pull_seq += 1;
+			this.pull_res = undefined;
 			this.pull_timer = -1;
-			this.pullMessage(res);
 		}
 	},
-	pullMessage : function (res)
+	pull : function (res, seq)
 	{
-		if(this.pull_res!=null) {
+		if(seq<this.pull_seq || seq>this.pull_seq+1) {
+			res.writeHead(200);
+			res.end('ERROR=INVALID_PARAMETER');
+			return;
+		}
+
+		if(seq==this.pull_seq) {
+			pullMessage(res, this.pull_queue_b);
+			return;
+		}
+
+		if(this.pull_res!=undefined) {
 			this.pull_res.writeHead(200);
-			this.pull_res.end('ERROR=0');
+			this.pull_res.end('ERROR=TRY_AGAIN');
 			timer.clearTimerout(this.pull_timer);
-			this.pull_res = null;
+			this.pull_res = undefined;
 			this.pull_timer = -1;
 		}
 
-		if(this.msg_count==0) {
-			var session = this;
-			this.pull_res = res;
-			this.pull_timer = timer.setTimeout(function () {
-				timer.clearTimerout(sessionsession.pull_timer);
-				session.pull_res = null;
-				session.pull_timer = -1;
-				res.writeHead(200);
-				res.end('ERROR=0');
-			}, 20000);
-			return;
-		}
-/*
-		res.writeHead(200);
-		this.res.write('{"response":[');
-		var count = 0;
-		for(q=0; q<this.msgq_array.length; q++) {
-			for(i=0; i<(this.msgq_array[q]).length; i++) {
-				if(count>0) this.res.write(',');
-				this.res.write((this.msgq_array[q])[i].body);
-				count++;
-			}
-			this.msgq_array[q] = [];
-		}
-		this.res.write(']}');
-		this.res.end();
-*/
-		this.msg_count = 0;
+		this.pull_res = res;
+		this.pull_timer = timer.setTimeout(function () {
+			timer.clearTimerout(sessionsession.pull_timer);
+			session.pull_res.writeHead(200);
+			session.pull_res.end('ERROR=TRY_AGAIN');
+			session.pull_res = undefined;
+			session.pull_timer = -1;
+		}, 20000);
 	},
 	begin : function (res)
 	{
-		if(!this._super()) {
-			return false;
-		}
 		this.res = res;
-		this.pending = false;
 		this.sendqueue = [];
 		return true;
 	},
@@ -154,7 +132,7 @@ var HttpSession = user_session.UserSession.extend({
 			this.res.end('ERROR='+err);
 		} else {
 			this.res.writeHead(200);
-			this.res.write('{"response":[');
+			this.res.write('ERROR=0;{"response":[');
 			for(i=0; i<this.sendqueue.length; i++) {
 				if(i>0) this.res.write(',');
 				this.res.write(this.sendqueue[i]);
@@ -187,8 +165,12 @@ function method_login(args, res)
 		} else {
 			var session = user_session.getSession(user_id);
 			if(session) {
-				if(!session.isPending()) {
-					session.logoutSession();
+				if(session.state<3) {
+					session.state = 3;
+					if(!session.isPending()) {
+						session.setPending(true);
+						session.logoutSession();
+					}
 				}
 				res.writeHead(200);
 				res.end('ERROR=ALREADY_EXISTED');
@@ -202,6 +184,8 @@ function method_login(args, res)
 			} else {
 				res.writeHead(200);
 				res.end('ERROR=0;{"session_key":"'+session.session_key+'"}');
+				session.begin();
+				session.call('loginSession', {});
 			}
 		}
 	});
@@ -222,6 +206,16 @@ function method_logout(args, res)
 		res.end('ERROR=INVALID_SESSION');
 		return;
 	}
+
+	if(session.isPending()) {
+		res.writeHead(200);
+		res.end('ERROR=TRY_AGAIN');
+		return;
+	}
+
+	session.begin
+	session.res = res;
+	session.setPending(true);
 	session.logout(session.user_id);
 	res.writeHead(200);
 	res.end('ERROR=0');
@@ -297,7 +291,7 @@ function method_pull(args, res)
 		return;
 	}
 
-	session.pullMessage(res);
+	session.pull(res, args.seq);
 }
 
 var methods = {
@@ -341,7 +335,7 @@ function dispatcher_http(req, res)
 
 var httpd = undefined;
 
-module.exports.start = function (ip, port)
+exports.start = function (ip, port)
 {
 	if(httpd==undefined) {
 		httpd = http.createServer(dispatcher_http);
@@ -349,7 +343,7 @@ module.exports.start = function (ip, port)
 	}
 }
 
-module.exports.stop = function ()
+exports.stop = function ()
 {
 	if(httpd!=undefined) {
 		httpd.close();
@@ -357,6 +351,6 @@ module.exports.stop = function ()
 	}
 
 	for(var i in session_map) {
-		session_map[i].logout();
+		session_map[i].logoutSession();
 	}
 }
