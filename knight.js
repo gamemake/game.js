@@ -5,10 +5,12 @@ exports.isMainModule = true;
 
 exports.login = function (session, args)
 {
+	console.log('login');
 }
 
 exports.logout = function (session, args)
 {
+	console.log('logout');
 	session.logout();
 }
 

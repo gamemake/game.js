@@ -2,6 +2,7 @@
 var http = require('http');
 var url = require('url');
 var querystring = require('querystring');
+var timers = require('timers');
 var user_session = require('./user_session.js');
 var dal_user = require('./dal_user.js');
 var utils = require('./utils.js');
@@ -17,13 +18,13 @@ function pullMessage(res, queue)
 	for(i=0; i<queue.length; i++) {
 		if(i>0) res.write(',');
 		if(typeof(queue[i])=='object') {
-			res.write(msg_array[index]);
+			res.write(JSON.stringify(queue[i]));
 		} else {
-			res.write(msg_array[index]);
+			res.write(queue[i]);
 		}
 	}
-	this.res.write(']}');
-	this.res.end();
+	res.write(']}');
+	res.end();
 }
 
 var HttpSession = user_session.UserSession.extend({
@@ -56,7 +57,7 @@ var HttpSession = user_session.UserSession.extend({
 		if(this.pull_res!=undefined) {
 			this.pull_res.writeHead(200);
 			this.pull_res.end('ERROR=0');
-			timer.clearTimerout(this.pull_timer);
+			timers.clearTimeout(this.pull_timer);
 			this.pull_res = null;
 			this.pull_timer = -1;
 		}
@@ -73,7 +74,7 @@ var HttpSession = user_session.UserSession.extend({
 		this.pull_queue.push(message);
 
 		if(this.pull_res!=undefined) {
-			timer.clearTimerout(this.pull_timer);
+			timers.clearTimeout(this.pull_timer);
 			pullMessage(this.pull_res, this.pull_queue);
 			this.pull_queue_b = this.pull_queue;
 			this.pull_queue = [];
@@ -129,7 +130,7 @@ function method_logout(args, res)
 		return;
 	}
 
-	var session = session[args.session_key];
+	var session = session_map[args.session_key];
 	if(session==undefined) {
 		res.writeHead(200);
 		res.end('ERROR=INVALID_SESSION');
@@ -147,12 +148,13 @@ function method_logout(args, res)
 
 function method_request(args, res)
 {
-	if(typeof(args.session_key)!='string' || typeof(args.seq)!='number')
+	if(typeof(args.session_key)!='string' || typeof(args.seq)!='string')
 	{
 		res.writeHead(200);
 		res.end('ERROR=INVALID_PARAMETER');
 		return;
 	}
+	args.seq = parseInt(args.seq);
 
 	var session = session_map[args.session_key];
 	if(session==undefined) {
@@ -172,6 +174,13 @@ function method_request(args, res)
 		return;
 	}
 
+	var request = args.request;
+	if(typeof(request)!='string') {
+		res.writeHead(200);
+		res.end('ERROR=INVALID_PARAMETER');
+		return;
+	}
+	request = JSON.parse(request);
 	var method = request.method;
 	if(typeof(method)!='string') {
 		res.writeHead(200);
@@ -184,13 +193,6 @@ function method_request(args, res)
 		res.end('ERROR=UNDEFINE_METHOD');
 		return;
 	}
-	var request = args.request;
-	if(typeof(request)!='string') {
-		res.writeHead(200);
-		res.end('ERROR=INVALID_PARAMETER');
-		return;
-	}
-	request = JSON.parse(request);
 	var message = request.message;
 	if(typeof(message)!='object') {
 		res.writeHead(200);
@@ -203,12 +205,13 @@ function method_request(args, res)
 
 function method_pull(args, res)
 {
-	if(typeof(args.session_key)!='string' || typeof(args.seq)!='number')
+	if(typeof(args.session_key)!='string' || typeof(args.seq)!='string')
 	{
 		res.writeHead(200);
 		res.end('ERROR=INVALID_PARAMETER');
 		return;
 	}
+	args.seq = parseInt(args.seq);
 
 	var session = session_map[args.session_key];
 	if(session==undefined) {
@@ -217,12 +220,12 @@ function method_pull(args, res)
 		return;
 	}
 
-	if(args.seq==this.pull_seq) {
+	if(args.seq==session.pull_seq) {
 		pullMessage(res, session.pull_queue_b);
 		return;
 	}
 
-	if(args.seq!=this.pull_seq+1) {
+	if(args.seq!=session.pull_seq+1) {
 		res.writeHead(200);
 		res.end('ERROR=INVALID_PARAMETER');
 		return;
@@ -231,14 +234,14 @@ function method_pull(args, res)
 	if(session.pull_res!=undefined) {
 		session.pull_res.writeHead(200);
 		session.pull_res.end('ERROR=TRY_AGAIN');
-		timer.clearTimerout(session.pull_timer);
+		timers.clearTimeout(session.pull_timer);
 		session.pull_res = undefined;
 		session.pull_timer = -1;
 	}
 
 	session.pull_res = res;
-	session.pull_timer = timer.setTimeout(function () {
-		timer.clearTimerout(session.pull_timer);
+	session.pull_timer = timers.setTimeout(function () {
+		timers.clearTimeout(session.pull_timer);
 		session.pull_res.writeHead(200);
 		session.pull_res.end('ERROR=TRY_AGAIN');
 		session.pull_res = undefined;

@@ -25,7 +25,7 @@ var method_array = [undefined, undefined];
 
 		if(mod.method_table!=undefined) {
 			if(typeof(mod.method_table)!='object') {
-				log.error('duplicate main mod ' + i);
+				log.error('invalid method table' + i);
 				process.exit(-1);
 			}
 			for(var f in mod.method_table) {
@@ -34,7 +34,7 @@ var method_array = [undefined, undefined];
 					process.exit(-1);
 				}
 				method_map[i+'.'+f] = method_array.length;
-				method_array.push(mod[f]);
+				method_array.push(mod.method_table[f]);
 			}
 		}
 	}
