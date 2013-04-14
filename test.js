@@ -46,9 +46,21 @@ function runMaster()
 
 function runWoker()
 {
+	var worker_id = -1;
 	process.on('message', function(msg) {
-		process.send({aaa:122});
-		console.log(msg);
+		switch(msg.method)
+		{
+		case 'start':
+			break;
+		case 'exit':
+			break;
+		case 'login':
+			break;
+		case 'logout':
+			break;
+		default:
+			break;
+		}
 	});
 }
 

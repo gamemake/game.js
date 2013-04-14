@@ -21,8 +21,7 @@ exports.startCluster = function (count, on_message)
 		item.enable = true;
 		workers[worker.id] = item;
 		item.worker.on('message', on_message);
-
-		item.worker.send({m:12312});
+		item.worker.send({method:'start', args:{worker_id:worker.id}});
 	});
 
 	cluster.on('disconnect', function (worker) {
