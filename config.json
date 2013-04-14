@@ -28,6 +28,12 @@
 	"modules" : {
 		"KNIGHT_C2S" : "./knight.js"
 	},
+
+	"cluster" : {
+		"enable" : true,
+		"worker_count" : 1
+	},
+
 	"log" : {
 		"path" : "./atlas.log",
 		"option" : {

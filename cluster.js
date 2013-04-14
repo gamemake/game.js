@@ -5,7 +5,7 @@ var cluster = require('cluster');
 var workers = [];
 var isrunning = false;
 
-exports.startCluster = function (count)
+exports.startCluster = function (count, on_message)
 {
 	if(count!=undefined) {
 		numCPUs = count;
@@ -20,6 +20,9 @@ exports.startCluster = function (count)
 		item.workload = 0;
 		item.enable = true;
 		workers[worker.id] = item;
+		item.worker.on('message', on_message);
+
+		item.worker.send({m:12312});
 	});
 
 	cluster.on('disconnect', function (worker) {
@@ -50,7 +53,7 @@ exports.stopCluster = function ()
 		var worker = workers[i];
 		if(worker!=undefined) {
 			if(worker.enable) {
-				worker.exit();
+				worker.worker.kill();
 			}
 		}
 	}

@@ -6,33 +6,57 @@ var log = require('./log.js');
 log.info('welcome to china.');
 */
 
+var cluster = require('cluster');
+var cluster_m = require('./cluster.js');
 var config = require('./config.js');
 config.load('./config.json');
 
-var frontend = require('./frontend_http.js');
-frontend.start(config.get('frontend.ip'), config.get('frontend.port'));
+function runMaster()
+{
+	var frontend = require('./frontend_http.js');
+	frontend.start(config.get('frontend.ip'), config.get('frontend.port'));
 
-var readLine = require ("readline");
-if (process.platform === "win32"){
-    var rl = readLine.createInterface ({
-        input: process.stdin,
-        output: process.stdout
-    });
+	var readLine = require ("readline");
+	if (process.platform === "win32"){
+	    var rl = readLine.createInterface ({
+	        input: process.stdin,
+	        output: process.stdout
+	    });
 
-    rl.on ("SIGINT", function (){
-        process.emit ("SIGINT");
-    });
+	    rl.on ("SIGINT", function (){
+	        process.emit ("SIGINT");
+	    });
+	}
+
+	process.on('SIGINT',function(){
+	    console.log('stopping...');
+	    frontend.stop();
+	    cluster_m.stopCluster();
+		process.exit(1);
+	});
+
+	process.on('exit', function() {
+	    console.log('exited');
+	});
+
+	cluster_m.startCluster(1, function(msg) {
+		console.log(msg);
+	});
 }
 
-process.on('SIGINT',function(){
-    console.log('stopping...');
-    frontend.stop();
-	process.exit(1);
-});
+function runWoker()
+{
+	process.on('message', function(msg) {
+		process.send({aaa:122});
+		console.log(msg);
+	});
+}
 
-process.on('exit', function() {
-    console.log('exited');
-});
+if(cluster.isMaster) {
+	runMaster();
+} else {
+	runWoker();
+}
 
 /*
 var Class = require('./class.js');

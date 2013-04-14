@@ -23,8 +23,7 @@ function pullMessage(res, queue)
 			res.write(queue[i]);
 		}
 	}
-	res.write(']}');
-	res.end();
+	res.end(']}');
 }
 
 var HttpSession = user_session.UserSession.extend({
@@ -201,6 +200,10 @@ function method_request(args, res)
 	}
 
 	session.call(cmd, message);
+
+	res.writeHead(200);
+	res.end('ERROR=0');
+	session.req_seq += 1;
 }
 
 function method_pull(args, res)
