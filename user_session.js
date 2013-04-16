@@ -1,8 +1,10 @@
 var config = require('./config.js');
 var log = require('./log.js');
 var boardcast = require('./boardcast.js');
+var cluster = require('./cluster.js');
 
 var method_map = {};
+                 // login      logout
 var method_array = [undefined, undefined];
 
 (function(){
@@ -39,6 +41,9 @@ var method_array = [undefined, undefined];
 		}
 	}
 
+	console.log(method_map);
+	console.log(method_array);
+
 	if(main_module==undefined) {
 		log.error('main module not found');
 		process.exit(-1);
@@ -52,20 +57,23 @@ var boardcast_manager = boardcast.createManager({});
 var UserSession = boardcast.Subscriber.extend({
 	init : function ()
 	{
+		this.worker = null;
 		this._super(boardcast_manager);
 	},
 	login : function (uid)
 	{
+		this.worker = cluster.allocWorker();
+		cluster.incWorkload(this.worker);
 		return this._super(uid);
 	},
 	logout : function ()
 	{
+		if(this.worker!=null) {
+			cluster.decWorkload(this.worker);
+			this.worker = null;
+		}
 		this._super();
 	},
-	call : function (cmd, args)
-	{
-		method_array[cmd](this, args);
-	}
 });
 
 exports.UserSession = UserSession;
@@ -81,3 +89,25 @@ exports.getMethodId = function (method)
 	if(index==undefined) return -1;
 	return index;
 }
+
+exports.getSession = function (user_id)
+{
+}
+
+exports.callMethod = function(session, method_id, _args)
+{
+	if(method_id<0 || method_id>=method_array.length)
+	{
+		return;
+	}
+
+	var msg = {
+		uid : session.uid,
+		method : method_id,
+		args : _args
+	};
+
+	session.worker.send(msg);
+}
+
+

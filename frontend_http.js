@@ -66,7 +66,7 @@ var HttpSession = user_session.UserSession.extend({
 	send : function (message)
 	{
 		if(this.pull_queue.lenght>=queue_max_size) {
-			this.call('main', 'logout', {});
+			user_session.callMethod(this, 1, {});
 			return;
 		}
 
@@ -100,7 +100,7 @@ function method_login(args, res)
 			if(session) {
 				if(!session.inLogout) {
 					session.inLogout = true;
-					session.call(1, {});
+					user_session.callMethod(session, 1, {});
 				}
 				res.writeHead(200);
 				res.end('ERROR=ALREADY_EXISTED');
@@ -114,7 +114,7 @@ function method_login(args, res)
 			} else {
 				res.writeHead(200);
 				res.end('ERROR=0;{"session_key":"'+session.session_key+'"}');
-				session.call(0, {});
+				user_session.callMethod(session, 0, {});
 			}
 		}
 	});
@@ -138,7 +138,7 @@ function method_logout(args, res)
 
 	if(!session.inLogout) {
 		session.inLogout = true;
-		session.call(1, {});
+		user_session.callMethod(session, 1, {});
 	}
 
 	res.writeHead(200);
@@ -199,7 +199,7 @@ function method_request(args, res)
 		return;
 	}
 
-	session.call(cmd, message);
+	user_session.callMethod(session, cmd, message);
 
 	res.writeHead(200);
 	res.end('ERROR=0');
@@ -312,7 +312,7 @@ exports.stop = function ()
 		var session = session_map[i];
 		if(!session.inLogout) {
 			session.inLogout = true;
-			session.call(1, {});
+			user_session.callMethod(session, 1, {});
 		}
 	}
 }

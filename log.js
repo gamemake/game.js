@@ -24,19 +24,23 @@ function getTime()
 		pad2(t.getHours()), ':', pad2(t.getMinutes()), ':', pad2(t.getSeconds())].join('');
 }
 
-function write_log(level, msg)
+function write_log(level, msg, args, start)
 {
 	if(level<min_level) return;
 
-	msg = getTime() + ' [' + loglevels[level] + '] ' + msg;
+	for (var i = start; i < args.length; i++) {
+		var regexp = new RegExp('\\{'+(i-2)+'\\}', 'gi');
+		msg = msg.replace(regexp, args[i]);
+	}
 
+	msg = getTime() + ' [' + loglevels[level] + '] ' + msg;
 	console.log(msg);
 }
 
 module.exports = {
-	info	: function (msg) { write_log(0, msg); },
-	debug	: function (msg) { write_log(1, msg); },
-	warning	: function (msg) { write_log(2, msg); },
-	error	: function (msg) { write_log(3, msg); },
-	trace	: function (msg) { write_log(4, msg); }
+	info	: function (msg) { write_log(0, msg, arguments, 2); },
+	debug	: function (msg) { write_log(1, msg, arguments, 2); },
+	warning	: function (msg) { write_log(2, msg, arguments, 2); },
+	error	: function (msg) { write_log(3, msg, arguments, 2); },
+	trace	: function (msg) { write_log(4, msg, arguments, 2); }
 }

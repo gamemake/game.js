@@ -6,10 +6,11 @@ var log = require('./log.js');
 log.info('welcome to china.');
 */
 
-var cluster = require('cluster');
-var cluster_m = require('./cluster.js');
 var config = require('./config.js');
 config.load('./config.json');
+var log = require('./log.js');
+var cluster = require('./cluster.js');
+var worker = require('./worker.js')
 
 function runMaster()
 {
@@ -31,7 +32,7 @@ function runMaster()
 	process.on('SIGINT',function(){
 	    console.log('stopping...');
 	    frontend.stop();
-	    cluster_m.stopCluster();
+	    cluster.stopCluster();
 		process.exit(1);
 	});
 
@@ -39,32 +40,15 @@ function runMaster()
 	    console.log('exited');
 	});
 
-	cluster_m.startCluster(1, function(msg) {
-		console.log(msg);
-	});
+	cluster.startCluster(1);
 }
 
 function runWoker()
 {
-	var worker_id = -1;
-	process.on('message', function(msg) {
-		switch(msg.method)
-		{
-		case 'start':
-			break;
-		case 'exit':
-			break;
-		case 'login':
-			break;
-		case 'logout':
-			break;
-		default:
-			break;
-		}
-	});
+	worker.run();
 }
 
-if(cluster.isMaster) {
+if(cluster.isMaster()) {
 	runMaster();
 } else {
 	runWoker();
