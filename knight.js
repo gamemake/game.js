@@ -18,7 +18,6 @@ exports.method_table = {};
 
 exports.method_table.Ping = function(session, args)
 {
-	console.log('Ping');
 	session.send('{"method":"KNIGHT_S2C.Pong","message":{}}');
 }
 

@@ -8,6 +8,8 @@ var isrunning = false;
 
 function processMessage(msg)
 {
+	console.log('recvfrom node ' + JSON.stringify(msg));
+
 	var session = user_session.getSession(msg.uid);
 	if(session==undefined) return;
 
@@ -131,12 +133,12 @@ exports.allocWorker = function ()
 		item = workers[i];
 		if(item!=undefined && item.enable) {
 			if(ret==undefined || ret.workload>item.workload) {
-				ret = item.worker;
+				ret = item;
 				break;
 			}
 		}
 	}
-	return ret;
+	return ret.worker;
 }
 
 exports.incWorkload = function (worker)

@@ -7,7 +7,7 @@ var method_map = {};
                  // login      logout
 var method_array = [undefined, undefined];
 
-(function(){
+(function () {
 	var modules_config = config.get('modules');
 	var main_module = undefined;
 	for(var i in modules_config) {
@@ -40,9 +40,6 @@ var method_array = [undefined, undefined];
 			}
 		}
 	}
-
-	console.log(method_map);
-	console.log(method_array);
 
 	if(main_module==undefined) {
 		log.error('main module not found');
@@ -92,6 +89,7 @@ exports.getMethodId = function (method)
 
 exports.getSession = function (user_id)
 {
+	return boardcast_manager.getSubscriberByUID(user_id);
 }
 
 exports.callMethod = function(session, method_id, _args)
@@ -101,13 +99,5 @@ exports.callMethod = function(session, method_id, _args)
 		return;
 	}
 
-	var msg = {
-		uid : session.uid,
-		method : method_id,
-		args : _args
-	};
-
-	session.worker.send(msg);
+	method_array[method_id](session, _args);
 }
-
-
