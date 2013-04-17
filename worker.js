@@ -18,7 +18,6 @@ UserSessionProxy.prototype.logout = function ()
 UserSessionProxy.prototype.send = function (_msg)
 {
 	var s_msg = {method:1, uid:this.uid, msg:_msg};
-	console.log('sendto master ' + JSON.stringify(s_msg));
 	process.send(s_msg);
 }
 
@@ -85,10 +84,6 @@ UserSessionProxy.prototype.sendToDomain = function (_domain_id, _msg)
 exports.run = function ()
 {
 	process.on('message', function (msg) {
-
-		console.log('recvfrom master ' + JSON.stringify(msg));
-
-
 		var uid = msg.uid;
 		var session = user_map[uid];
 		if(session==undefined) {
@@ -113,6 +108,5 @@ exports.callMethod = function (session, method_id, _args)
 		args : _args
 	};
 
-	console.log('sendto node ' + JSON.stringify(msg));
 	session.worker.send(msg);
 }

@@ -8,8 +8,6 @@ var isrunning = false;
 
 function processMessage(msg)
 {
-	console.log('recvfrom node ' + JSON.stringify(msg));
-
 	var session = user_session.getSession(msg.uid);
 	if(session==undefined) return;
 
