@@ -29,9 +29,22 @@
 		"KNIGHT_C2S" : "./knight.js"
 	},
 
-	"cluster" : {
-		"enable" : true,
-		"worker_count" : 1
+	"services" : {
+		"room" : {
+			"ip" : "0.0.0.0",
+			"port" : 1980,
+			"script" : "room.js"
+		},
+		"guild" : {
+			"ip" : "0.0.0.0",
+			"port" : 1980,
+			"script" : "guild.js"
+		}
+	},
+
+	"global" : {
+		"enable_cluster" : false,
+		"enable_distribution" : true
 	},
 
 	"log" : {

@@ -1,5 +1,5 @@
 
-var user_session = require('./user_session.js');
+var module_mng = require('./module.js');
 var log = require('./log.js');
 
 var user_map = {};
@@ -96,7 +96,7 @@ exports.run = function ()
 			}
 		}
 
-		user_session.callMethod(session, msg.method, msg.args);
+		module_mng.callMethod(session, msg.method, msg.args);
 	});
 }
 

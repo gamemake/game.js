@@ -12,6 +12,8 @@ var log = require('./log.js');
 var cluster = require('./cluster.js');
 var worker = require('./worker.js')
 
+var enableCluster = config.get('global.enable_cluster');
+
 function runMaster()
 {
 	var frontend = require('./frontend_http.js');
@@ -32,7 +34,9 @@ function runMaster()
 	process.on('SIGINT',function(){
 	    console.log('stopping...');
 	    frontend.stop();
-	    cluster.stopCluster();
+	    if(enableCluster) {
+		    cluster.stopCluster();
+	    }
 		process.exit(1);
 	});
 
@@ -40,18 +44,15 @@ function runMaster()
 	    console.log('exited');
 	});
 
-	cluster.startCluster(1);
-}
-
-function runWoker()
-{
-	worker.run();
+	if(enableCluster) {
+		cluster.startCluster(1);
+	}
 }
 
 if(cluster.isMaster()) {
 	runMaster();
 } else {
-	runWoker();
+	worker.run();
 }
 
 /*

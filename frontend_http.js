@@ -4,7 +4,7 @@ var url = require('url');
 var querystring = require('querystring');
 var timers = require('timers');
 var user_session = require('./user_session.js');
-var worker = require('./worker.js');
+var module_mng = require('./module.js');
 var dal_user = require('./dal_user.js');
 var utils = require('./utils.js');
 var config = require('./config.js');
@@ -67,7 +67,7 @@ var HttpSession = user_session.UserSession.extend({
 	send : function (message)
 	{
 		if(this.pull_queue.lenght>=queue_max_size) {
-			worker.callMethod(this, 1, {});
+			module_mng.callMethod(this, 1, {});
 			return;
 		}
 
@@ -101,7 +101,7 @@ function method_login(args, res)
 			if(session) {
 				if(!session.inLogout) {
 					session.inLogout = true;
-					worker.callMethod(session, 1, {});
+					module_mng.callMethod(session, 1, {});
 				}
 				res.writeHead(200);
 				res.end('ERROR=ALREADY_EXISTED');
@@ -115,7 +115,7 @@ function method_login(args, res)
 			} else {
 				res.writeHead(200);
 				res.end('ERROR=0;{"session_key":"'+session.session_key+'"}');
-				worker.callMethod(session, 0, {});
+				module_mng.callMethod(session, 0, {});
 			}
 		}
 	});
@@ -139,7 +139,7 @@ function method_logout(args, res)
 
 	if(!session.inLogout) {
 		session.inLogout = true;
-		worker.callMethod(session, 1, {});
+		module_mng.callMethod(session, 1, {});
 	}
 
 	res.writeHead(200);
@@ -187,7 +187,7 @@ function method_request(args, res)
 		res.end('ERROR=INVALID_PARAMETER');
 		return;
 	}
-	var cmd = user_session.getMethodId(method);
+	var cmd = module_mng.getMethodId(method);
 	if(cmd<0) {
 		res.writeHead(200);
 		res.end('ERROR=UNDEFINE_METHOD');
@@ -200,7 +200,7 @@ function method_request(args, res)
 		return;
 	}
 
-	worker.callMethod(session, cmd, message);
+	module_mng.callMethod(session, cmd, message);
 
 	res.writeHead(200);
 	res.end('ERROR=0');
@@ -313,7 +313,7 @@ exports.stop = function ()
 		var session = session_map[i];
 		if(!session.inLogout) {
 			session.inLogout = true;
-			worker.callMethod(session, 1, {});
+			module_mng.callMethod(session, 1, {});
 		}
 	}
 }

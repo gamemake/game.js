@@ -1,5 +1,6 @@
 
 var dal_avatar = require('./dal_avatar.js');
+var room = require('./room.js');
 
 exports.isMainModule = true;
 
@@ -81,4 +82,19 @@ exports.method_table.Get = function(session, args)
 
 exports.method_table.Boardcast = function(session, args)
 {
+}
+
+exports.method_table.RoomJoin = function(session, args)
+{
+	room.join(session, args.room_index);
+}
+
+exports.method_table.RoomChat = function(session, args)
+{
+	room.chat(session, args.msg);
+}
+
+exports.method_table.RoomLeave = function(session, args)
+{
+	room.leave(session);
 }
