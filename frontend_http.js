@@ -264,8 +264,8 @@ function dispatcher_http(req, res)
 {
 	url_parts = url.parse(req.url);
 	path = url_parts.pathname;
-	if(path.substring(0, 11)=='/atlas-api/') {
-		var method = methods[path.substring(11)];
+	if(path.substring(0, 10)=='/game-api/') {
+		var method = methods[path.substring(10)];
 		if(method!=undefined) {
 			if(req.method=='POST') {
 				var info = "";
